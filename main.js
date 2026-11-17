@@ -260,20 +260,28 @@ if (work) {
     const inZone = y => y >= work.offsetTop - 1 && y <= work.offsetTop + segH * clips.length;
     let touch = null, glide = null, catchDir = 0, catchUntil = 0, lastY = window.scrollY;
 
+    // Den eingebauten Schwung des iPhones stoppen, damit nur EINE Bewegung zum Ziel läuft.
+    // (overflow:hidden beendet den Schwung sofort; per Skript lässt sich trotzdem weiterscrollen.)
+    const root = document.documentElement;
+    const lockMomentum = () => { root.style.overflow = 'hidden'; };
+    const unlockMomentum = () => { root.style.overflow = ''; };
+
     const glideTo = y => {
       cancelAnimationFrame(glide);
-      const from = window.scrollY, dist = y - from, t0 = performance.now(), dur = 380;
+      lockMomentum();
+      const from = window.scrollY, dist = y - from, t0 = performance.now(), dur = 420;
       const ease = k => 1 - Math.pow(1 - k, 3);
       const tick = now => {
         const k = Math.min((now - t0) / dur, 1);
         window.scrollTo(0, from + dist * ease(k));
-        glide = k < 1 ? requestAnimationFrame(tick) : null;
+        if (k < 1) glide = requestAnimationFrame(tick);
+        else { glide = null; unlockMomentum(); }
       };
       glide = requestAnimationFrame(tick);
     };
 
     window.addEventListener('touchstart', e => {
-      cancelAnimationFrame(glide); glide = null; catchDir = 0;
+      cancelAnimationFrame(glide); glide = null; catchDir = 0; unlockMomentum();
       const y = e.touches[0].clientY;
       touch = { y0: y, t0: e.timeStamp, samples: [[e.timeStamp, y]] };
     }, { passive: true });

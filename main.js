@@ -238,6 +238,67 @@ if (work) {
   viewer.addEventListener('click', openActive);
 
 
+  // ---------- Touch: Wischen wie bei Reels ----------
+  // Kräftiger Wisch = genau ein Projekt weiter/zurück (rastet in der Clipmitte ein).
+  // Kleine, langsame Bewegungen = Timeline folgt dem Finger frei (scrubben).
+  // Am ersten/letzten Projekt geht es mit normalem Scrollen aus dem Bereich heraus.
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    const SWIPE_DIST = 45, SWIPE_VEL = 0.35; // px bzw. px/ms
+    const zoneStart = () => work.offsetTop;
+    const zoneEnd = () => work.offsetTop + segH * clips.length - 1;
+    const centerOf = i => work.offsetTop + segH * (i + 0.5);
+    const indexAt = y => Math.min(Math.max(Math.floor((y - work.offsetTop) / segH), 0), clips.length - 1);
+    let t = null, snapAnim = null;
+
+    const animateTo = y => {
+      cancelAnimationFrame(snapAnim);
+      const from = window.scrollY, dist = y - from, t0 = performance.now(), dur = 420;
+      const ease = k => 1 - Math.pow(1 - k, 3);
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        window.scrollTo(0, from + dist * ease(k));
+        if (k < 1) snapAnim = requestAnimationFrame(tick);
+      };
+      snapAnim = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('touchstart', e => {
+      cancelAnimationFrame(snapAnim);
+      const y = window.scrollY;
+      const inZone = y >= zoneStart() - 2 && y <= zoneEnd() + 2;
+      t = inZone ? { y0: e.touches[0].clientY, last: e.touches[0].clientY, lastT: e.timeStamp, vel: 0,
+                     startIndex: indexAt(y), held: false } : null;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!t || !lightbox.hidden) return;
+      const cy = e.touches[0].clientY, dy = t.last - cy;   // >0 = Finger nach oben = vorwärts
+      const dt = Math.max(e.timeStamp - t.lastT, 1);
+      t.vel = 0.8 * t.vel + 0.2 * (dy / dt);
+      t.last = cy; t.lastT = e.timeStamp;
+      const next = window.scrollY + dy;
+      // Raus aus dem Bereich: am Anfang nach oben bzw. am Ende nach unten normal weiterscrollen
+      if ((next < zoneStart() && t.startIndex === 0) || (next > zoneEnd() && t.startIndex === clips.length - 1)) {
+        if (!t.held) { t = null; return; }
+      }
+      e.preventDefault();
+      t.held = true;
+      window.scrollTo(0, Math.min(Math.max(next, zoneStart()), zoneEnd()));
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+      if (!t || !t.held) { t = null; return; }
+      const total = t.y0 - t.last, dir = Math.sign(total);
+      if (Math.abs(total) > SWIPE_DIST || Math.abs(t.vel) > SWIPE_VEL) {
+        const target = t.startIndex + (dir || Math.sign(t.vel));
+        if (target < 0) animateTo(Math.max(0, work.offsetTop - window.innerHeight));          // zurück zum Banner
+        else if (target >= clips.length) animateTo(zoneEnd() + window.innerHeight * 0.7);   // weiter zu About
+        else animateTo(centerOf(target));
+      }
+      t = null;
+    }, { passive: true });
+  }
+
   window.addEventListener('scroll', update, { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)
   let lastW = window.innerWidth;

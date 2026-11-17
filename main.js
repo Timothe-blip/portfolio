@@ -40,7 +40,7 @@ function openVideo(card) {
   document.querySelectorAll('video').forEach(v => {
     if (!v.paused) { v.dataset.resume = '1'; v.pause(); }
   });
-  lightbox.querySelector('.lightbox-close').focus();
+  lightbox.querySelector('.lightbox-close').focus({ preventScroll: true });
 }
 
 function closeVideo() {
@@ -51,7 +51,8 @@ function closeVideo() {
   document.querySelectorAll('video[data-resume]').forEach(v => {
     delete v.dataset.resume; v.play().catch(() => {});
   });
-  if (lastFocus) lastFocus.focus();
+  // Fokus zurück, aber ohne dass der Browser dafür etwas verschiebt
+  if (lastFocus) lastFocus.focus({ preventScroll: true });
 }
 
 document.querySelectorAll('[data-video]').forEach(card => {
@@ -215,6 +216,8 @@ if (work) {
     return geo[i].x + hold(t) * geo[i].w;
   }
   function render(pos) {
+    // Sicherheitsnetz: falls ein Browser den Bereich doch verschoben hat, zurücksetzen
+    if (sticky.scrollLeft || sticky.scrollTop) { sticky.scrollLeft = 0; sticky.scrollTop = 0; }
     const tx = viewport.clientWidth / 2 - pos;
     track.style.transform = `translate3d(${tx.toFixed(2)}px,0,0)`;
     // Clipname bleibt am linken Bildrand sichtbar, solange der Clip im Bild ist (wie in Resolve)

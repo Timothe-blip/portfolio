@@ -36,6 +36,10 @@ function openVideo(card) {
   frame.innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${title}"></iframe>`;
   lightbox.hidden = false;
   document.body.style.overflow = 'hidden';
+  // Banner und Vorschau anhalten, solange der Film mit Ton läuft
+  document.querySelectorAll('video').forEach(v => {
+    if (!v.paused) { v.dataset.resume = '1'; v.pause(); }
+  });
   lightbox.querySelector('.lightbox-close').focus();
 }
 
@@ -43,6 +47,10 @@ function closeVideo() {
   lightbox.hidden = true;
   frame.innerHTML = '';
   document.body.style.overflow = '';
+  // Angehaltene Videos wieder starten
+  document.querySelectorAll('video[data-resume]').forEach(v => {
+    delete v.dataset.resume; v.play().catch(() => {});
+  });
   if (lastFocus) lastFocus.focus();
 }
 
@@ -83,6 +91,7 @@ if (bgVideo) {
   // Nur abspielen, solange der Startbereich sichtbar ist (spart Akku)
   new IntersectionObserver(([entry]) => {
     if (reduceMotion) return;
+    if (!lightbox.hidden) return;
     entry.isIntersecting ? bgVideo.play().catch(() => {}) : bgVideo.pause();
   }).observe(document.querySelector('.hero'));
 }
@@ -168,7 +177,7 @@ if (work) {
     if (!viewerVisible || !active?.dataset.preview) return;
     const c = active;
     viewer._v = setTimeout(() => {
-      if (active !== c || !viewerVisible) return;
+      if (active !== c || !viewerVisible || !lightbox.hidden) return;
       vVideo.currentTime = 0;
       vVideo.play().then(() => viewer.classList.add('has-video')).catch(() => {});
     }, THUMB_HOLD);

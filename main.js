@@ -35,7 +35,6 @@ function openVideo(card) {
   const title = card.dataset.title || card.querySelector('h3')?.textContent || 'Video';
   frame.innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${title}"></iframe>`;
   lightbox.hidden = false;
-  document.body.style.overflow = 'hidden';
   // Banner und Vorschau anhalten, solange der Film mit Ton läuft
   document.querySelectorAll('video').forEach(v => {
     if (!v.paused) { v.dataset.resume = '1'; v.pause(); }
@@ -46,7 +45,6 @@ function openVideo(card) {
 function closeVideo() {
   lightbox.hidden = true;
   frame.innerHTML = '';
-  document.body.style.overflow = '';
   // Angehaltene Videos wieder starten
   document.querySelectorAll('video[data-resume]').forEach(v => {
     delete v.dataset.resume; v.play().catch(() => {});
@@ -64,6 +62,9 @@ document.querySelectorAll('[data-video]').forEach(card => {
   });
 });
 lightbox.addEventListener('click', e => { if (e.target === lightbox) closeVideo(); });
+// Hintergrund nicht mitscrollen, solange der Film offen ist – ohne die Seite selbst zu sperren
+// (das Sperren der Seite bringt Safari am iPhone dazu, den Viewer-Bereich nicht mehr festzuhalten).
+['touchmove', 'wheel'].forEach(type => lightbox.addEventListener(type, e => e.preventDefault(), { passive: false }));
 lightbox.querySelector('.lightbox-close').addEventListener('click', closeVideo);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !lightbox.hidden) closeVideo(); });
 

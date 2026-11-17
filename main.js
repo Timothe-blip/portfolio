@@ -208,7 +208,7 @@ if (work) {
 
   // Scrollen gibt nur das Ziel vor; die Timeline gleitet weich dorthin (gleich weich mit Maus, Trackpad und Finger)
   const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0.14;
-  let curPos = null, tgtPos = 0, anim = null;
+  let curPos = null, tgtPos = 0, anim = null, gliding = false;
   function targetFromScroll() {
     const y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), segH * clips.length - 0.001);
     const i = Math.min(Math.max(Math.floor(y / segH), 0), geo.length - 1), t = Math.min(Math.max((y - i * segH) / segH, 0), 1);
@@ -233,7 +233,7 @@ if (work) {
     anim = Math.abs(tgtPos - curPos) > 0.5 ? requestAnimationFrame(step) : null;
   }
   function update() {
-    if (!geo.length || !segH) return;
+    if (!geo.length || !segH || gliding) return;
     tgtPos = targetFromScroll();
     if (curPos === null) { curPos = tgtPos; render(curPos); return; }
     if (!anim) anim = requestAnimationFrame(step);
@@ -280,10 +280,40 @@ if (work) {
       glide = requestAnimationFrame(tick);
     };
 
+    // Wisch innerhalb der Timeline: die TIMELINE gleitet auf einer Abbremskurve (schnell los, weich aus),
+    // unabhängig vom "Halten" in der Clipmitte. Die Scrollposition wird passend mitgeführt.
+    const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / 2.6);
+    const scrollForPos = p => {
+      let i = geo.findIndex(g => p < g.x + g.w);
+      if (i < 0) i = geo.length - 1;
+      const g = geo[i], h = Math.min(Math.max((p - g.x) / g.w, 0), 1);
+      return work.offsetTop + segH * (i + holdInv(h));
+    };
+    const glideToClip = i => {
+      cancelAnimationFrame(glide);
+      lockMomentum();
+      cancelAnimationFrame(anim); anim = null;
+      const from = curPos ?? targetFromScroll(), to = geo[i].x + geo[i].w / 2;
+      const t0 = performance.now(), dur = 460;
+      const ease = k => 1 - Math.pow(1 - k, 3);      // schnell los, sanft auslaufen
+      gliding = true;
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        const p = from + (to - from) * ease(k);
+        curPos = tgtPos = p; render(p);
+        window.scrollTo(0, scrollForPos(p));
+        if (k < 1) glide = requestAnimationFrame(tick);
+        else { glide = null; gliding = false; unlockMomentum(); }
+      };
+      glide = requestAnimationFrame(tick);
+    };
+
     window.addEventListener('touchstart', e => {
-      cancelAnimationFrame(glide); glide = null; catchDir = 0; unlockMomentum();
-      const y = e.touches[0].clientY;
-      touch = { y0: y, t0: e.timeStamp, samples: [[e.timeStamp, y]] };
+      cancelAnimationFrame(glide); glide = null; gliding = false; catchDir = 0; unlockMomentum();
+      const y = e.touches[0].clientY, sy = window.scrollY;
+      touch = { y0: y, t0: e.timeStamp, samples: [[e.timeStamp, y]],
+                startIdx: Math.min(Math.max(Math.floor((sy - work.offsetTop) / segH), 0), clips.length - 1),
+                startInZone: inZone(sy) };
     }, { passive: true });
 
     window.addEventListener('touchmove', e => {
@@ -297,15 +327,15 @@ if (work) {
       const sm = touch.samples, [tA, yA] = sm[0], [tB, yB] = sm[sm.length - 1];
       const vel = (yA - yB) / Math.max(tB - tA, 1);           // >0 = Finger nach oben = vorwärts
       const total = touch.y0 - yB, dur = e.timeStamp - touch.t0;
+      const { startIdx, startInZone } = touch;
       touch = null;
       const flick = Math.abs(vel) > FLICK_VEL || (Math.abs(total) > FLICK_DIST && dur < FLICK_TIME);
       if (!flick) return;
       const dir = Math.sign(vel) || Math.sign(total), y = window.scrollY;
-      if (inZone(y)) {
-        // Immer ein ganzes Projekt weiter/zurück, ausgehend vom Projekt unter dem Abspielkopf
-        const idx = Math.min(Math.max(Math.floor((y - work.offsetTop) / segH), 0), clips.length - 1);
-        const next = idx + dir;
-        if (next >= 0 && next < clips.length) glideTo(centerOf(next));   // sonst: normal raus zum Banner bzw. zu About
+      if (startInZone && inZone(y)) {
+        // Genau ein Projekt weiter/zurück – gezählt ab dem Projekt beim Aufsetzen des Fingers
+        const next = startIdx + dir;
+        if (next >= 0 && next < clips.length) glideToClip(next);   // sonst: normal raus zum Banner bzw. zu About
       } else {
         // Schwung von außen: beim Hineinrollen am ersten (bzw. letzten) Projekt abfangen
         catchDir = dir; catchUntil = performance.now() + 2500;

@@ -145,7 +145,10 @@ if (work) {
   function layout() {
     const h = clips[0].getBoundingClientRect().height;
     clips.forEach(c => { c.style.width = Math.round(h * (1.2 + 0.16 * Math.sqrt(dur(c)))) + 'px'; });
-    geo = clips.map(c => ({ c, x: c.offsetLeft, w: c.offsetWidth }));
+    geo = clips.map(c => {
+      const [nameEl, durEl] = c.querySelectorAll('.clip-label span');
+      return { c, x: c.offsetLeft, w: c.offsetWidth, nameEl, nameW: nameEl.scrollWidth, durW: durEl.offsetWidth, shift: 0 };
+    });
     ruler.innerHTML = geo.map(g => `<span style="left:${g.x}px">${fmt(TC_START + g.c.tcStart, false)}</span>`).join('');
     segH = window.innerHeight * SCROLL_PER_CLIP;
     work.style.height = `${sticky.offsetHeight + segH * clips.length}px`;
@@ -212,7 +215,14 @@ if (work) {
     return geo[i].x + hold(t) * geo[i].w;
   }
   function render(pos) {
-    track.style.transform = `translate3d(${(viewport.clientWidth / 2 - pos).toFixed(2)}px,0,0)`;
+    const tx = viewport.clientWidth / 2 - pos;
+    track.style.transform = `translate3d(${tx.toFixed(2)}px,0,0)`;
+    // Clipname bleibt am linken Bildrand sichtbar, solange der Clip im Bild ist (wie in Resolve)
+    geo.forEach(g => {
+      const left = g.x + tx, max = Math.max(0, g.w - (g.nameW || 0) - (g.durW || 0) - 28);
+      const shift = left < 0 ? Math.min(-left, max) : 0;
+      if (g.shift !== shift) { g.shift = shift; g.nameEl.style.transform = shift ? `translateX(${shift.toFixed(1)}px)` : ''; }
+    });
     const g = geo.find(g => pos >= g.x && pos < g.x + g.w + 3) || (pos < geo[0].x ? geo[0] : geo.at(-1));
     setActive(g, Math.min(Math.max((pos - g.x) / g.w, 0), 1));
   }
@@ -239,16 +249,71 @@ if (work) {
   viewer.addEventListener('click', openActive);
 
 
-  // ---------- Haltepunkte pro Projekt (Handy: CSS Scroll-Snap, siehe style.css) ----------
-  // Ein unsichtbarer Marker pro Clipmitte. Das Einrasten macht der Browser selbst,
-  // dadurch bleibt das Scrollen am iPhone so weich wie überall sonst.
-  const snaps = clips.map(() => {
-    const m = document.createElement('div');
-    m.className = 'tl-snap'; m.setAttribute('aria-hidden', 'true');
-    work.appendChild(m);
-    return m;
-  });
-  const placeSnaps = () => snaps.forEach((m, i) => { m.style.top = `${segH * (i + 0.5)}px`; });
+  // ---------- Handy: zügiger Wisch = nächstes Projekt, langsames Wischen = frei ----------
+  // Das iPhone scrollt ganz normal. Erst beim Loslassen wird die Fingergeschwindigkeit geprüft:
+  // schnell genug → weich zur Mitte des nächsten/vorigen Projekts gleiten; langsam → bleibt, wo man loslässt.
+  const placeSnaps = () => {};
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    const FLICK_VEL = 0.22;            // px/ms Fingergeschwindigkeit beim Loslassen
+    const FLICK_DIST = 24, FLICK_TIME = 260; // oder: kurzer, schneller Wisch (px in ms)
+    const centerOf = i => work.offsetTop + segH * (i + 0.5);
+    const inZone = y => y >= work.offsetTop - 1 && y <= work.offsetTop + segH * clips.length;
+    let touch = null, glide = null, catchDir = 0, catchUntil = 0, lastY = window.scrollY;
+
+    const glideTo = y => {
+      cancelAnimationFrame(glide);
+      const from = window.scrollY, dist = y - from, t0 = performance.now(), dur = 380;
+      const ease = k => 1 - Math.pow(1 - k, 3);
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        window.scrollTo(0, from + dist * ease(k));
+        glide = k < 1 ? requestAnimationFrame(tick) : null;
+      };
+      glide = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('touchstart', e => {
+      cancelAnimationFrame(glide); glide = null; catchDir = 0;
+      const y = e.touches[0].clientY;
+      touch = { y0: y, t0: e.timeStamp, samples: [[e.timeStamp, y]] };
+    }, { passive: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!touch) return;
+      touch.samples.push([e.timeStamp, e.touches[0].clientY]);
+      if (touch.samples.length > 6) touch.samples.shift();
+    }, { passive: true });
+
+    window.addEventListener('touchend', e => {
+      if (!touch || !lightbox.hidden) { touch = null; return; }
+      const sm = touch.samples, [tA, yA] = sm[0], [tB, yB] = sm[sm.length - 1];
+      const vel = (yA - yB) / Math.max(tB - tA, 1);           // >0 = Finger nach oben = vorwärts
+      const total = touch.y0 - yB, dur = e.timeStamp - touch.t0;
+      touch = null;
+      const flick = Math.abs(vel) > FLICK_VEL || (Math.abs(total) > FLICK_DIST && dur < FLICK_TIME);
+      if (!flick) return;
+      const dir = Math.sign(vel) || Math.sign(total), y = window.scrollY;
+      if (inZone(y)) {
+        // Immer ein ganzes Projekt weiter/zurück, ausgehend vom Projekt unter dem Abspielkopf
+        const idx = Math.min(Math.max(Math.floor((y - work.offsetTop) / segH), 0), clips.length - 1);
+        const next = idx + dir;
+        if (next >= 0 && next < clips.length) glideTo(centerOf(next));   // sonst: normal raus zum Banner bzw. zu About
+      } else {
+        // Schwung von außen: beim Hineinrollen am ersten (bzw. letzten) Projekt abfangen
+        catchDir = dir; catchUntil = performance.now() + 2500;
+      }
+    }, { passive: true });
+
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      if (catchDir && !touch && !glide && performance.now() < catchUntil) {
+        const first = centerOf(0), last = centerOf(clips.length - 1);
+        if (catchDir > 0 && lastY < first && y >= first - segH * 0.35) { catchDir = 0; glideTo(first); }
+        else if (catchDir < 0 && lastY > last && y <= last + segH * 0.35) { catchDir = 0; glideTo(last); }
+      }
+      lastY = y;
+    }, { passive: true });
+  }
 
   window.addEventListener('scroll', update, { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)

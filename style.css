@@ -241,7 +241,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   height: 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 0 8px; background: #4a5660; color: #fff; font-family: var(--mono); font-size: 10px; letter-spacing: .03em; transition: background .25s;
 }
-.clip-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clip-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; will-change: transform; }
 .clip.is-active { border-color: var(--accent); }
 .clip.is-active .clip-frames, .clip:hover .clip-frames { filter: none; }
 .clip.is-active .clip-label { background: var(--accent); }
@@ -305,14 +305,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .portrait.reveal.is-in img { transform: none; filter: none; }
 @media (max-width: 760px) {
   .portrait { max-width: 70%; }
-}
-
-/* ============ Handy: Einrasten pro Projekt (wie Reels) ============ */
-.tl-snap { position: absolute; left: 0; width: 1px; height: 1px; pointer-events: none; }
-@media (pointer: coarse) {
-  html { scroll-snap-type: y proximity; }
-  .tl-snap { scroll-snap-align: start; scroll-snap-stop: always; }
-  .hero { scroll-snap-align: start; }
 }
 
 /* Handy/Touch: "Play film" unten links immer sichtbar (es gibt kein Drüberfahren) */

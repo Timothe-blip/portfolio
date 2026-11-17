@@ -53,6 +53,8 @@ function closeVideo() {
   });
   // Fokus zurück, aber ohne dass der Browser dafür etwas verschiebt
   if (lastFocus) lastFocus.focus({ preventScroll: true });
+  document.documentElement.style.overflow = '';
+  window.dispatchEvent(new Event('lightbox:closed'));
 }
 
 document.querySelectorAll('[data-video]').forEach(card => {
@@ -363,6 +365,12 @@ if (work) {
       lastY = y;
     }, { passive: true });
   }
+
+  // Nach dem Schließen eines Films: Timeline-Bereich zurücksetzen und neu berechnen
+  window.addEventListener('lightbox:closed', () => {
+    sticky.scrollLeft = 0; sticky.scrollTop = 0;
+    requestAnimationFrame(() => { sticky.scrollLeft = 0; sticky.scrollTop = 0; layout(); });
+  });
 
   window.addEventListener('scroll', update, { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)

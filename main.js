@@ -302,13 +302,21 @@ if (work) {
         const p = from + (to - from) * ease(k);
         curPos = tgtPos = p; render(p);
         window.scrollTo(0, scrollForPos(p));
-        if (k < 1) glide = requestAnimationFrame(tick);
-        else { glide = null; gliding = false; unlockMomentum(); }
+        if (k < 1) { glide = requestAnimationFrame(tick); return; }
+        // Ende: Position festsetzen und verspätete Scroll-Meldungen vom iPhone kurz ignorieren,
+        // sonst springt die Timeline kurz an den Clipanfang und wieder zurück.
+        const finalY = scrollForPos(to);
+        glide = null; unlockMomentum();
+        window.scrollTo(0, finalY);
+        curPos = tgtPos = to; render(to);
+        settle = setTimeout(() => { gliding = false; window.scrollTo(0, finalY); }, 250);
       };
       glide = requestAnimationFrame(tick);
     };
+    let settle = null;
 
     window.addEventListener('touchstart', e => {
+      clearTimeout(settle);
       cancelAnimationFrame(glide); glide = null; gliding = false; catchDir = 0; unlockMomentum();
       const y = e.touches[0].clientY, sy = window.scrollY;
       touch = { y0: y, t0: e.timeStamp, samples: [[e.timeStamp, y]],

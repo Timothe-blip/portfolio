@@ -318,8 +318,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* Handy/Touch: "Play film" unten links immer sichtbar (es gibt kein Drüberfahren) */
 @media (hover: none), (pointer: coarse) {
   .tl-viewer .vw-play {
-    opacity: 1; transform: none; left: 10px; bottom: 10px;
-    padding: 6px 10px; border-radius: 99px; background: rgba(13,15,17,.55);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); text-shadow: none; font-size: 10px;
+    opacity: 1; transform: none; left: 12px; bottom: 10px;
+    font-size: 10px; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.35);
   }
 }

@@ -176,14 +176,21 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .work { position: relative; }
 .tl-sticky {
   position: sticky; top: 0; height: 100svh; overflow: hidden;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; justify-content: center;
   padding: 76px 0 clamp(14px, 2.4vh, 28px);
   --clip-h: clamp(56px, 10vh, 96px);
 }
 
 /* Viewer: so groß wie möglich, kleine Titelzeile darüber */
-.tl-stage { flex: 1; min-height: 0; display: flex; justify-content: center; padding: 0 var(--gutter); margin-bottom: clamp(14px, 2.4vh, 28px); }
-.tl-frame { height: 100%; aspect-ratio: 16 / 9.6; max-width: 100%; display: flex; flex-direction: column; min-height: 0; }
+/* Viewer + Timeline als ein Block, mittig im Bildschirm.
+   Die Bühne ist so hoch wie ein 16:9-Bild in voller Breite (+ Titelzeile) und schrumpft, wenn der Platz nicht reicht. */
+.tl-stage {
+  flex: 0 1 auto; min-height: 0; height: calc((100vw - 2 * var(--gutter)) * 9 / 16 + 28px);
+  display: flex; justify-content: center; align-items: flex-end;
+  padding: 0 var(--gutter); margin-bottom: clamp(16px, 2.6vh, 28px); container-type: size;
+}
+/* Viewer bleibt immer 16:9: so breit wie möglich, aber nie höher als der verfügbare Platz (abzüglich Titelzeile) */
+.tl-frame { --bar: 28px; width: min(100cqw, (100cqh - var(--bar)) * 16 / 9); display: flex; flex-direction: column; }
 .tl-bar {
   display: flex; align-items: baseline; gap: 14px; padding-bottom: 8px; font-size: 11px; white-space: nowrap; min-width: 0;
 }
@@ -192,7 +199,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .tl-award { color: var(--accent); font-weight: 500; }
 .tl-award[hidden] { display: none; }
 .vw-tc { margin-left: auto; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
-.tl-viewer { position: relative; flex: 1; min-height: 0; width: 100%; background: #0d0f11; overflow: hidden; border-radius: 3px; cursor: pointer; }
+.tl-viewer { position: relative; flex: none; aspect-ratio: 16 / 9; width: 100%; background: #0d0f11; overflow: hidden; border-radius: 3px; cursor: pointer; }
 .tl-viewer img, .tl-viewer video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .5s ease; }
 .tl-viewer .vw-still { animation: kenburns 14s ease-in-out infinite alternate; }
 @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.08) translate(-1%, -1%); } }
@@ -252,9 +259,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* Handy (Hochformat): ohne Überschrift, Viewer volle Breite */
 @media (max-width: 760px) {
   .tl-sticky { --clip-h: clamp(56px, 10vh, 84px); padding-top: 72px; }
-  .tl-stage { align-items: center; }
-  .tl-frame { height: auto; width: 100%; aspect-ratio: auto; }
-  .tl-viewer { flex: none; aspect-ratio: 16 / 9; }
+  .tl-stage { height: auto; flex: none; container-type: normal; }
+  .tl-frame { width: 100%; }
   .tl-bar { flex-wrap: wrap; row-gap: 4px; white-space: normal; }
   .tl-meta { flex-basis: 100%; order: 3; white-space: nowrap; }
 }

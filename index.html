@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timothé Kimmel | Editor – Sport, Outdoor & Doc</title>
+  <meta name="description" content="Timothé Kimmel – freelance editor for sport, outdoor and documentary films.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=7">
+</head>
+<body>
+
+  <header class="topbar">
+    <a href="#top" class="brand">Timothé Kimmel</a>
+    <nav>
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <!-- Hintergrund: eigener Denali-Loop.
+           data-landscape = Querformat (16:9), data-portrait = Hochformat (9:16) fürs Handy (leer = Querformat überall).
+           Zu jedem Namen gehören die Dateien -av1.mp4, -hevc.mp4 und -h264.mp4 im Ordner media/. -->
+      <div class="hero-media" data-landscape="media/banner-16x9" data-portrait="">
+        <video autoplay muted loop playsinline preload="auto" poster="media/banner-16x9-poster.jpg" aria-hidden="true"></video>
+      </div>
+      <h1 class="visually-hidden">Timothé Kimmel – Freelance Editor for sport, outdoor &amp; documentary</h1>
+      <div class="hero-bar mono">
+        <span>Up North — Denali auf die harte Tour</span>
+        <button class="hero-watch" data-video="youtube:qEK9n64dlRE" data-title="Denali auf die harte Tour">Watch with sound ↗</button>
+      </div>
+    </section>
+
+    <!-- ============ IN POST (Coming soon) ============ -->
+    <section class="section" id="in-post">
+      <div class="section-head">
+        <h2 class="section-title">In the edit</h2>
+        <span class="mono muted">Coming soon</span>
+      </div>
+      <div class="soon-grid">
+        <article class="soon-card">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery08/2104b83e_original.jpg" alt="enliven – MTB Film" loading="lazy"></div>
+          <div class="card-meta">
+            <span class="badge mono">In post</span>
+            <h3>enliven</h3>
+            <p class="mono muted">MTB Film</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ WORK ============ -->
+    <section class="section" id="work">
+      <div class="section-head">
+        <h2 class="section-title">Selected work</h2>
+        <div class="filters mono" role="group" aria-label="Filter projects">
+          <button class="is-active" data-filter="all">All</button>
+          <button data-filter="doc">Doc</button>
+          <button data-filter="sport">Sport</button>
+          <button data-filter="commercial">Commercial</button>
+          <button data-filter="fiction">Fiction</button>
+        </div>
+      </div>
+
+      <!--
+        So fügst du ein Projekt hinzu: einen <article>-Block kopieren und anpassen.
+        data-video = vimeo:ID  oder  vimeo:ID:HASH  oder  youtube:ID
+        data-tags  = doc, sport, commercial, fiction (mehrere mit Leerzeichen)
+      -->
+      <div class="work-grid">
+        <article class="work-card" data-video="youtube:qEK9n64dlRE" data-tags="doc sport" tabindex="0">
+          <div class="thumb"><img src="https://i.ytimg.com/vi/qEK9n64dlRE/maxresdefault.jpg" alt="Denali auf die harte Tour" loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>Denali auf die harte Tour</h3>
+            <p class="mono muted">Documentary · Up North – 36-day ski expedition, first of the season · Tobias Renggli</p>
+          </div>
+        </article>
+
+        <article class="work-card" data-video="vimeo:1159707051" data-tags="fiction" tabindex="0">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/468e597a_original.jpg" alt="Fehl am Platz" loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>Fehl am Platz</h3>
+            <p class="mono muted">Short Film</p>
+          </div>
+        </article>
+
+        <article class="work-card" data-video="youtube:7GFW0JM0Wo0" data-tags="sport" tabindex="0">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/27d0ca31_original.jpg" alt="Autumn" loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>Autumn</h3>
+            <p class="mono muted">Bike Film · Bikepark Todtnau</p>
+          </div>
+        </article>
+
+        <article class="work-card" data-video="youtube:c_zBys_uTHk" data-tags="doc sport" tabindex="0">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/6ce8d4c2_original.jpg" alt="Gipfeli of Switzerland" loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>Gipfeli of Switzerland</h3>
+            <p class="mono muted">Documentary · European Outdoor Film Tour 2025</p>
+          </div>
+        </article>
+
+        <article class="work-card" data-video="vimeo:836962035:14b866cf9f" data-tags="commercial" tabindex="0">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/76b8dff6_original.jpg" alt="FUJIFILM X-H2s" loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>FUJIFILM X-H2s</h3>
+            <p class="mono muted">Commercial · Black Forest Collective</p>
+          </div>
+        </article>
+
+        <article class="work-card" data-video="youtube:lmGJY6_9Zt0" data-tags="doc" tabindex="0">
+          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/59b77492_original.jpg" alt="Why I needed a night outside. Solo." loading="lazy"><span class="play" aria-hidden="true"></span></div>
+          <div class="card-meta">
+            <h3>Why I needed a night outside. Solo.</h3>
+            <p class="mono muted">YouTube · Wiebke Lühmann</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ ABOUT ============ -->
+    <section class="section about" id="about">
+      <h2 class="section-title">About</h2>
+      <div class="about-body">
+        <p class="lead">[Platzhalter] I'm Timothé, a freelance editor based in the Black Forest. I cut sport, outdoor and documentary films – from festival docs to brand work and YouTube.</p>
+        <ul class="facts mono">
+          <li><span>Focus</span>Sport · Outdoor · Documentary</li>
+          <li><span>Tools</span>DaVinci Resolve [Platzhalter]</li>
+          <li><span>Based in</span>[Platzhalter]</li>
+          <li><span>Languages</span>German · English [Platzhalter]</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="contact">
+      <p class="mono muted">Got footage that needs a story?</p>
+      <a class="contact-big" href="mailto:hello@example.com">Let's talk →</a>
+      <div class="contact-links mono">
+        <a href="mailto:hello@example.com">hello@example.com [Platzhalter]</a>
+        <a href="https://www.instagram.com/timothe.kimmel/" target="_blank" rel="noopener">Instagram</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer mono">
+    <span>© <span id="year"></span> Timothé Kimmel</span>
+    <a href="#top">Back to top ↑</a>
+  </footer>
+
+  <!-- Video player -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Video" hidden>
+    <button class="lightbox-close mono" aria-label="Close">Close ✕</button>
+    <div class="lightbox-frame"></div>
+  </div>
+
+  <script src="main.js?v=7"></script>
+</body>
+</html>

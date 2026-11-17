@@ -1,3 +1,7 @@
+// Nach dem Neuladen immer oben starten (Browser merken sich sonst die Scrollposition)
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+if (!location.hash) window.scrollTo(0, 0);
+
 // Jahr im Footer
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -139,24 +143,41 @@ if (work) {
     update();
   }
 
+  // Erst das Thumbnail zeigen, nach THUMB_HOLD ms weich in den Vorschau-Loop überblenden
+  const THUMB_HOLD = 1500;
   function showInViewer(c) {
     viewer.classList.add('is-switching');
-    clearTimeout(viewer._t);
+    clearTimeout(viewer._t); clearTimeout(viewer._v);
+    viewer.classList.remove('has-video');
+    vVideo.pause();
     viewer._t = setTimeout(() => {
       still.src = c.dataset.thumb || '';
       still.alt = c.dataset.title;
       viewer.classList.toggle('is-offline', c.dataset.status === 'in-post');
-      if (c.dataset.preview) {
-        if (vVideo.getAttribute('src') !== c.dataset.preview) vVideo.src = c.dataset.preview;
-        vVideo.play().catch(() => {});
-        viewer.classList.add('has-video');
-      } else {
-        vVideo.pause();
-        viewer.classList.remove('has-video');
-      }
       viewer.classList.remove('is-switching');
+      if (!c.dataset.preview) return;
+      if (vVideo.getAttribute('src') !== c.dataset.preview) { vVideo.src = c.dataset.preview; vVideo.load(); }
+      scheduleVideo();
     }, 180);
   }
+  // Der Countdown fürs Thumbnail läuft nur, solange der Viewer wirklich im Bild ist.
+  // Ist er nicht sichtbar, bleibt das Thumbnail stehen und der Loop wird zurückgesetzt.
+  let viewerVisible = false;
+  function scheduleVideo() {
+    clearTimeout(viewer._v);
+    if (!viewerVisible || !active?.dataset.preview) return;
+    const c = active;
+    viewer._v = setTimeout(() => {
+      if (active !== c || !viewerVisible) return;
+      vVideo.currentTime = 0;
+      vVideo.play().then(() => viewer.classList.add('has-video')).catch(() => {});
+    }, THUMB_HOLD);
+  }
+  new IntersectionObserver(([en]) => {
+    viewerVisible = en.intersectionRatio >= 0.75;
+    if (viewerVisible) { if (!viewer.classList.contains('has-video')) scheduleVideo(); }
+    else { clearTimeout(viewer._v); vVideo.pause(); viewer.classList.remove('has-video'); }
+  }, { threshold: [0, 0.75, 1] }).observe(viewer);
 
   function setActive(g, within) {
     tcEl.textContent = fmt(TC_START + g.c.tcStart + within * dur(g.c));
@@ -190,11 +211,6 @@ if (work) {
   const openActive = () => active?.dataset.video && openVideo(active);
   viewer.addEventListener('click', openActive);
 
-  // Vorschau nur abspielen, solange der Bereich sichtbar ist
-  new IntersectionObserver(([en]) => {
-    if (!en.isIntersecting) vVideo.pause();
-    else if (viewer.classList.contains('has-video')) vVideo.play().catch(() => {});
-  }).observe(work);
 
   window.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)
@@ -204,8 +220,49 @@ if (work) {
   window.addEventListener('load', layout);
 }
 
+// ---------- Eigener Cursor über Viewer und Clips ----------
+const cursor = document.querySelector('.cursor');
+if (cursor && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  const label = cursor.querySelector('.cursor-label');
+  let tx = -200, ty = -200, cx = -200, cy = -200, raf = null;
+  const ease = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0.22;
+  const loop = () => {
+    cx += (tx - cx) * ease; cy += (ty - cy) * ease;
+    cursor.style.setProperty('--x', cx + 'px'); cursor.style.setProperty('--y', cy + 'px');
+    raf = Math.abs(tx - cx) + Math.abs(ty - cy) > 0.3 ? requestAnimationFrame(loop) : null;
+  };
+  // Was zeigt der Cursor über welchem Element?
+  const describe = el => {
+    const v = el.closest('.tl-viewer');
+    if (v) return v.classList.contains('is-offline') ? ['offline', 'In post'] : ['play', 'Play'];
+    const c = el.closest('.clip');
+    if (c) {
+      if (c.dataset.status === 'in-post') return ['offline', 'In post'];
+      return c.classList.contains('is-active') ? ['play', 'Play'] : ['view', 'View'];
+    }
+    return null;
+  };
+  let lastEl = null;
+  const refresh = () => {
+    const d = lastEl && describe(lastEl);
+    cursor.classList.toggle('is-on', !!d);
+    if (d) { cursor.dataset.kind = d[0]; label.textContent = d[1]; }
+  };
+  document.addEventListener('mousemove', e => {
+    tx = e.clientX; ty = e.clientY;
+    if (!cursor.classList.contains('is-on')) { cx = tx; cy = ty; }
+    lastEl = e.target; refresh();
+    if (!raf) raf = requestAnimationFrame(loop);
+  }, { passive: true });
+  document.addEventListener('mouseleave', () => cursor.classList.remove('is-on'));
+  // Beim Scrollen ändert sich, was unter der Maus liegt (z. B. aktiver Clip)
+  window.addEventListener('scroll', () => {
+    lastEl = document.elementFromPoint(tx, ty); refresh();
+  }, { passive: true });
+}
+
 // ---------- Einblenden beim Scrollen ----------
-const revealEls = document.querySelectorAll('.about-body, .about .section-title');
+const revealEls = document.querySelectorAll('.about-body, .about .section-title, .portrait');
 revealEls.forEach(el => el.classList.add('reveal'));
 const io = new IntersectionObserver(entries => {
   entries.forEach(entry => {

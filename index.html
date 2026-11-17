@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 
@@ -105,7 +105,12 @@
 
     <!-- ============ ABOUT ============ -->
     <section class="section about" id="about">
-      <h2 class="section-title">About</h2>
+      <div class="about-side">
+        <h2 class="section-title">About</h2>
+        <figure class="portrait">
+          <img src="media/portrait.jpg?v=3" alt="Timothé Kimmel" width="1060" height="1326" loading="lazy">
+        </figure>
+      </div>
       <div class="about-body">
         <p class="lead">I'm Timothé, a freelance film editor based in Freiburg, Germany. My way into film started on the mountain bike – and the mountains are still what drives me. I cut documentaries, outdoor and sport films, commercials and social content.</p>
         <ul class="facts mono">
@@ -140,6 +145,9 @@
     <div class="lightbox-frame"></div>
   </div>
 
-  <script src="main.js?v=19"></script>
+  <!-- Eigener Cursor über Viewer und Clips (nur mit Maus) -->
+  <div class="cursor" aria-hidden="true"><span class="cursor-label"></span></div>
+
+  <script src="main.js?v=23"></script>
 </body>
 </html>

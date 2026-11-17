@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 
@@ -38,90 +38,68 @@
       </div>
     </section>
 
-    <!-- ============ IN POST (Coming soon) ============ -->
-    <section class="section" id="in-post">
-      <div class="section-head">
-        <h2 class="section-title">In the edit</h2>
-        <span class="mono muted">Coming soon</span>
-      </div>
-      <div class="soon-grid">
-        <article class="soon-card">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery08/2104b83e_original.jpg" alt="enliven – MTB Film" loading="lazy"></div>
-          <div class="card-meta">
-            <span class="badge mono">In post</span>
-            <h3>enliven</h3>
-            <p class="mono muted">MTB Film</p>
-          </div>
-        </article>
-      </div>
-    </section>
+    <!-- ============ WORK: Timeline ============
+         Jeder Clip = ein Projekt. Reihenfolge hier = Reihenfolge in der Timeline.
+         data-video    = youtube:ID  oder  vimeo:ID  oder  vimeo:ID:HASH  (weglassen = noch nicht fertig)
+         data-duration = Filmlänge in Sekunden (bestimmt die Clip-Breite und den Timecode)
+         data-status="in-post" = Projekt im Schnitt, nicht anklickbar -->
+    <section class="work" id="work">
+      <div class="tl-sticky">
+        <h2 class="visually-hidden">Work</h2>
 
-    <!-- ============ WORK ============ -->
-    <section class="section" id="work">
-      <div class="section-head">
-        <h2 class="section-title">Selected work</h2>
-        <div class="filters mono" role="group" aria-label="Filter projects">
-          <button class="is-active" data-filter="all">All</button>
-          <button data-filter="doc">Doc</button>
-          <button data-filter="sport">Sport</button>
-          <button data-filter="commercial">Commercial</button>
-          <button data-filter="fiction">Fiction</button>
+        <!-- Viewer: zeigt das Projekt unter dem Abspielkopf (wie der Viewer in Resolve) -->
+        <div class="tl-stage">
+          <div class="tl-frame">
+            <div class="tl-bar mono" aria-live="polite">
+              <span class="tl-count muted">01 / 07</span>
+              <span class="tl-title"></span>
+              <span class="tl-meta muted"></span>
+              <span class="tl-award" hidden></span>
+              <span class="vw-tc" aria-hidden="true">01:00:00:00</span>
+            </div>
+            <button class="tl-viewer" aria-label="Play film">
+              <img class="vw-still" alt="">
+              <video class="vw-video" muted loop playsinline preload="none" aria-hidden="true"></video>
+              <span class="vw-play mono" aria-hidden="true">Play film ↗</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!--
-        So fügst du ein Projekt hinzu: einen <article>-Block kopieren und anpassen.
-        data-video = vimeo:ID  oder  vimeo:ID:HASH  oder  youtube:ID
-        data-tags  = doc, sport, commercial, fiction (mehrere mit Leerzeichen)
-      -->
-      <div class="work-grid">
-        <article class="work-card" data-video="youtube:qEK9n64dlRE" data-tags="doc sport" tabindex="0">
-          <div class="thumb"><img src="https://i.ytimg.com/vi/qEK9n64dlRE/maxresdefault.jpg" alt="Denali auf die harte Tour" loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>Denali auf die harte Tour</h3>
-            <p class="mono muted">Documentary · Up North – 36-day ski expedition, first of the season · Tobias Renggli</p>
-          </div>
-        </article>
+        <div class="tl-viewport">
+          <div class="tl-track">
+            <div class="tl-ruler" aria-hidden="true"></div>
 
-        <article class="work-card" data-video="vimeo:1159707051" data-tags="fiction" tabindex="0">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/468e597a_original.jpg" alt="Fehl am Platz" loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>Fehl am Platz</h3>
-            <p class="mono muted">Short Film</p>
-          </div>
-        </article>
+            <button class="clip" data-video="youtube:qEK9n64dlRE" data-duration="1430" data-preview="media/preview-denali.mp4"
+              data-title="Denali auf die harte Tour" data-meta="Editor · Short documentary · Tobias Renggli · 2026"
+              data-thumb="https://i.ytimg.com/vi/qEK9n64dlRE/maxresdefault.jpg"></button>
 
-        <article class="work-card" data-video="youtube:7GFW0JM0Wo0" data-tags="sport" tabindex="0">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/27d0ca31_original.jpg" alt="Autumn" loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>Autumn</h3>
-            <p class="mono muted">Bike Film · Bikepark Todtnau</p>
-          </div>
-        </article>
+            <button class="clip" data-video="youtube:c_zBys_uTHk" data-duration="58"
+              data-title="Gipfeli of Switzerland" data-meta="Junior Editor · Documentary · Tobias Renggli · 2024" data-award="EOFT Selection"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery07/6ce8d4c2_original.jpg"></button>
 
-        <article class="work-card" data-video="youtube:c_zBys_uTHk" data-tags="doc sport" tabindex="0">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/6ce8d4c2_original.jpg" alt="Gipfeli of Switzerland" loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>Gipfeli of Switzerland</h3>
-            <p class="mono muted">Documentary · European Outdoor Film Tour 2025</p>
-          </div>
-        </article>
+            <button class="clip" data-video="vimeo:1159707051" data-duration="95"
+              data-title="Fehl am Platz" data-meta="Director · Editor · Short film · 2026"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery07/468e597a_original.jpg"></button>
 
-        <article class="work-card" data-video="vimeo:836962035:14b866cf9f" data-tags="commercial" tabindex="0">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/76b8dff6_original.jpg" alt="FUJIFILM X-H2s" loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>FUJIFILM X-H2s</h3>
-            <p class="mono muted">Commercial · Black Forest Collective</p>
-          </div>
-        </article>
+            <button class="clip" data-video="youtube:lmGJY6_9Zt0" data-duration="607"
+              data-title="Why I needed a night outside. Solo." data-meta="Editor · Travel vlog · Wiebke Lühmann · 2025"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery07/59b77492_original.jpg"></button>
 
-        <article class="work-card" data-video="youtube:lmGJY6_9Zt0" data-tags="doc" tabindex="0">
-          <div class="thumb"><img src="https://timotheportfolio.carrd.co/assets/images/gallery07/59b77492_original.jpg" alt="Why I needed a night outside. Solo." loading="lazy"><span class="play" aria-hidden="true"></span></div>
-          <div class="card-meta">
-            <h3>Why I needed a night outside. Solo.</h3>
-            <p class="mono muted">YouTube · Wiebke Lühmann</p>
+            <button class="clip" data-video="youtube:7GFW0JM0Wo0" data-duration="19"
+              data-title="Autumn" data-meta="Camera · Editor · MTB film · Julius Kowaltschik · 2024"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery07/27d0ca31_original.jpg"></button>
+
+            <button class="clip" data-video="vimeo:836962035:14b866cf9f" data-duration="60"
+              data-title="FUJIFILM X-H2s" data-meta="Editor · Trailer · Fujifilm – Visual Storytelling with Sarah Ziegler · 2023"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery07/76b8dff6_original.jpg"></button>
+
+            <button class="clip" data-status="in-post" data-duration="180"
+              data-title="enliven" data-meta="MTB film · In post – coming soon"
+              data-thumb="https://timotheportfolio.carrd.co/assets/images/gallery08/2104b83e_original.jpg"></button>
           </div>
-        </article>
+          <div class="tl-playhead" aria-hidden="true"></div>
+        </div>
+
       </div>
     </section>
 
@@ -129,12 +107,13 @@
     <section class="section about" id="about">
       <h2 class="section-title">About</h2>
       <div class="about-body">
-        <p class="lead">[Platzhalter] I'm Timothé, a freelance editor based in the Black Forest. I cut sport, outdoor and documentary films – from festival docs to brand work and YouTube.</p>
+        <p class="lead">I'm Timothé, a freelance film editor based in Freiburg, Germany. My way into film started on the mountain bike – and the mountains are still what drives me. I cut documentaries, outdoor and sport films, commercials and social content.</p>
         <ul class="facts mono">
-          <li><span>Focus</span>Sport · Outdoor · Documentary</li>
-          <li><span>Tools</span>DaVinci Resolve [Platzhalter]</li>
-          <li><span>Based in</span>[Platzhalter]</li>
-          <li><span>Languages</span>German · English [Platzhalter]</li>
+          <li><span>Focus</span>Documentary · Outdoor · Sport · Commercial</li>
+          <li><span>Tools</span>DaVinci Resolve Studio · Adobe CC · AI tools (Midjourney, Higgsfield)</li>
+          <li><span>Experience</span>27 Kilometer Entertainment · Ziegler Film · Black Forest Collective · Vancouver Film School</li>
+          <li><span>Based in</span>Freiburg, Germany</li>
+          <li><span>Languages</span>German · French · English</li>
         </ul>
       </div>
     </section>
@@ -142,9 +121,9 @@
     <!-- ============ CONTACT ============ -->
     <section class="contact" id="contact">
       <p class="mono muted">Got footage that needs a story?</p>
-      <a class="contact-big" href="mailto:hello@example.com">Let's talk →</a>
+      <a class="contact-big" href="mailto:timothe@kimmel24.de">Let's talk →</a>
       <div class="contact-links mono">
-        <a href="mailto:hello@example.com">hello@example.com [Platzhalter]</a>
+        <a href="mailto:timothe@kimmel24.de">timothe@kimmel24.de</a>
         <a href="https://www.instagram.com/timothe.kimmel/" target="_blank" rel="noopener">Instagram</a>
       </div>
     </section>
@@ -161,6 +140,6 @@
     <div class="lightbox-frame"></div>
   </div>
 
-  <script src="main.js?v=7"></script>
+  <script src="main.js?v=15"></script>
 </body>
 </html>

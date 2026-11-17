@@ -83,19 +83,129 @@ if (bgVideo) {
   }).observe(document.querySelector('.hero'));
 }
 
-// ---------- Filter ----------
-const buttons = document.querySelectorAll('.filters button');
-buttons.forEach(btn => btn.addEventListener('click', () => {
-  buttons.forEach(b => b.classList.toggle('is-active', b === btn));
-  const f = btn.dataset.filter;
-  document.querySelectorAll('.work-card').forEach(card => {
-    const tags = (card.dataset.tags || '').split(' ');
-    card.classList.toggle('is-hidden', f !== 'all' && !tags.includes(f));
+// ---------- Viewer + Timeline (Selected work) ----------
+// Scrollen bewegt die Timeline unter dem Abspielkopf. Jedes Projekt bekommt gleich viel
+// Scrollweg und der Abspielkopf "hält" kurz in der Clipmitte. Der Viewer oben zeigt das
+// Projekt unter dem Abspielkopf (Vorschau-Loop, falls vorhanden, sonst Standbild).
+const work = document.getElementById('work');
+if (work) {
+  const sticky = work.querySelector('.tl-sticky');
+  const viewport = work.querySelector('.tl-viewport');
+  const track = work.querySelector('.tl-track');
+  const ruler = work.querySelector('.tl-ruler');
+  const clips = [...work.querySelectorAll('.clip')];
+  const viewer = work.querySelector('.tl-viewer');
+  const still = viewer.querySelector('.vw-still');
+  const vVideo = viewer.querySelector('.vw-video');
+  const tcEl = work.querySelector('.vw-tc');
+  const countEl = work.querySelector('.tl-count');
+  const awardEl = work.querySelector('.tl-award');
+  const titleEl = work.querySelector('.tl-title');
+  const metaEl = work.querySelector('.tl-meta');
+  const FPS = 25, TC_START = 3600;      // Timelines beginnen wie in Resolve bei 01:00:00:00
+  const SCROLL_PER_CLIP = 0.6;          // Scrollweg pro Projekt in Bildschirmhöhen
+
+  const p2 = n => String(n).padStart(2, '0');
+  const fmt = (sec, frames = true) => {
+    const t = Math.floor(sec), hms = `${p2(Math.floor(t / 3600))}:${p2(Math.floor(t / 60) % 60)}:${p2(t % 60)}`;
+    return frames ? `${hms}:${p2(Math.floor((sec % 1) * FPS))}` : hms;
+  };
+  const dur = c => Number(c.dataset.duration) || 60;
+  const short = sec => `${p2(Math.floor(sec / 60))}:${p2(Math.floor(sec % 60))}`;
+  // langsam in der Mitte, schnell an den Rändern → Abspielkopf "hält" auf jedem Projekt
+  const hold = t => 0.5 + 0.5 * Math.sign(t - 0.5) * Math.pow(Math.abs(2 * t - 1), 2.6);
+
+  let acc = 0;
+  clips.forEach(c => {
+    c.tcStart = acc; acc += dur(c);
+    c.style.setProperty('--thumb', `url("${c.dataset.thumb}")`);
+    const name = c.dataset.title.toUpperCase().replace(/[^A-Z0-9ÄÖÜ]+/g, '_').replace(/^_|_$/g, '');
+    const right = c.dataset.status === 'in-post' ? 'IN POST' : short(dur(c));
+    c.innerHTML = `<span class="clip-frames"></span><span class="clip-label"><span>${name}</span><span>${right}</span></span>`;
+    c.setAttribute('aria-label', `${c.dataset.title} – ${c.dataset.meta}`);
+    if (c.dataset.status === 'in-post') c.setAttribute('aria-disabled', 'true');
+    if (c.dataset.thumb) new Image().src = c.dataset.thumb; // Standbilder vorladen
   });
-}));
+
+  let geo = [], active = null, segH = 0;
+
+  function layout() {
+    const h = clips[0].getBoundingClientRect().height;
+    clips.forEach(c => { c.style.width = Math.round(h * (1.2 + 0.16 * Math.sqrt(dur(c)))) + 'px'; });
+    geo = clips.map(c => ({ c, x: c.offsetLeft, w: c.offsetWidth }));
+    ruler.innerHTML = geo.map(g => `<span style="left:${g.x}px">${fmt(TC_START + g.c.tcStart, false)}</span>`).join('');
+    segH = window.innerHeight * SCROLL_PER_CLIP;
+    work.style.height = `${sticky.offsetHeight + segH * clips.length}px`;
+    update();
+  }
+
+  function showInViewer(c) {
+    viewer.classList.add('is-switching');
+    clearTimeout(viewer._t);
+    viewer._t = setTimeout(() => {
+      still.src = c.dataset.thumb || '';
+      still.alt = c.dataset.title;
+      viewer.classList.toggle('is-offline', c.dataset.status === 'in-post');
+      if (c.dataset.preview) {
+        if (vVideo.getAttribute('src') !== c.dataset.preview) vVideo.src = c.dataset.preview;
+        vVideo.play().catch(() => {});
+        viewer.classList.add('has-video');
+      } else {
+        vVideo.pause();
+        viewer.classList.remove('has-video');
+      }
+      viewer.classList.remove('is-switching');
+    }, 180);
+  }
+
+  function setActive(g, within) {
+    tcEl.textContent = fmt(TC_START + g.c.tcStart + within * dur(g.c));
+    if (active === g.c) return;
+    active?.classList.remove('is-active');
+    active = g.c; active.classList.add('is-active');
+    titleEl.textContent = active.dataset.title;
+    metaEl.textContent = active.dataset.meta;
+    awardEl.hidden = !active.dataset.award;
+    awardEl.textContent = active.dataset.award ? `★ ${active.dataset.award}` : '';
+    countEl.textContent = `${p2(clips.indexOf(active) + 1)} / ${p2(clips.length)}`;
+    showInViewer(active);
+  }
+
+  function update() {
+    if (!geo.length) return;
+    const y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), segH * clips.length - 0.001);
+    const i = Math.floor(y / segH), t = (y - i * segH) / segH;
+    const g = geo[i], within = hold(t);
+    const pos = g.x + within * g.w;
+    track.style.transform = `translate3d(${viewport.clientWidth / 2 - pos}px,0,0)`;
+    setActive(g, within);
+  }
+
+  // Klick auf einen anderen Clip → dorthin scrollen; Klick auf den aktiven → Film öffnen
+  clips.forEach((c, i) => c.addEventListener('click', e => {
+    if (c === active) return;
+    e.stopImmediatePropagation();
+    window.scrollTo({ top: work.offsetTop + segH * (i + 0.5), behavior: 'smooth' });
+  }, true));
+  const openActive = () => active?.dataset.video && openVideo(active);
+  viewer.addEventListener('click', openActive);
+
+  // Vorschau nur abspielen, solange der Bereich sichtbar ist
+  new IntersectionObserver(([en]) => {
+    if (!en.isIntersecting) vVideo.pause();
+    else if (viewer.classList.contains('has-video')) vVideo.play().catch(() => {});
+  }).observe(work);
+
+  window.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
+  // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)
+  let lastW = window.innerWidth;
+  window.addEventListener('resize', () => { if (window.innerWidth !== lastW) { lastW = window.innerWidth; layout(); } });
+  layout();
+  window.addEventListener('load', layout);
+}
 
 // ---------- Einblenden beim Scrollen ----------
-const revealEls = document.querySelectorAll('.soon-card, .work-card, .about-body, .section-head');
+const revealEls = document.querySelectorAll('.about-body, .about .section-title');
 revealEls.forEach(el => el.classList.add('reveal'));
 const io = new IntersectionObserver(entries => {
   entries.forEach(entry => {

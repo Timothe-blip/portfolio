@@ -261,8 +261,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .tl-sticky { --clip-h: clamp(56px, 10vh, 84px); padding-top: 72px; }
   .tl-stage { height: auto; flex: none; container-type: normal; }
   .tl-frame { width: 100%; }
-  .tl-bar { flex-wrap: wrap; row-gap: 4px; white-space: normal; }
-  .tl-meta { flex-basis: 100%; order: 3; white-space: nowrap; }
+  /* Feste Höhe (2 Zeilen), damit der Viewer beim Projektwechsel nicht springt */
+  .tl-bar {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 16px 16px;
+    column-gap: 10px; row-gap: 4px; align-items: center; white-space: nowrap;
+  }
+  .tl-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tl-meta { grid-column: 1 / 3; grid-row: 2; }
+  .tl-award { grid-column: 3; grid-row: 2; justify-self: end; }
+  .tl-award[hidden] { display: block; visibility: hidden; }
 }
 
 /* ============ Eigener Cursor ============ */

@@ -149,6 +149,7 @@ if (work) {
     ruler.innerHTML = geo.map(g => `<span style="left:${g.x}px">${fmt(TC_START + g.c.tcStart, false)}</span>`).join('');
     segH = window.innerHeight * SCROLL_PER_CLIP;
     work.style.height = `${sticky.offsetHeight + segH * clips.length}px`;
+    curPos = null;
     update();
   }
 
@@ -201,14 +202,30 @@ if (work) {
     showInViewer(active);
   }
 
-  function update() {
-    if (!geo.length) return;
+  // Scrollen gibt nur das Ziel vor; die Timeline gleitet weich dorthin (gleich weich mit Maus, Trackpad und Finger)
+  const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0.14;
+  let curPos = null, tgtPos = 0, anim = null;
+  function targetFromScroll() {
     const y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), segH * clips.length - 0.001);
-    const i = Math.floor(y / segH), t = (y - i * segH) / segH;
-    const g = geo[i], within = hold(t);
-    const pos = g.x + within * g.w;
-    track.style.transform = `translate3d(${viewport.clientWidth / 2 - pos}px,0,0)`;
-    setActive(g, within);
+    const i = Math.min(Math.max(Math.floor(y / segH), 0), geo.length - 1), t = Math.min(Math.max((y - i * segH) / segH, 0), 1);
+    return geo[i].x + hold(t) * geo[i].w;
+  }
+  function render(pos) {
+    track.style.transform = `translate3d(${(viewport.clientWidth / 2 - pos).toFixed(2)}px,0,0)`;
+    const g = geo.find(g => pos >= g.x && pos < g.x + g.w + 3) || (pos < geo[0].x ? geo[0] : geo.at(-1));
+    setActive(g, Math.min(Math.max((pos - g.x) / g.w, 0), 1));
+  }
+  function step() {
+    const d = tgtPos - curPos;
+    curPos += Math.abs(d) < 0.5 ? d : d * LERP;
+    render(curPos);
+    anim = Math.abs(tgtPos - curPos) > 0.5 ? requestAnimationFrame(step) : null;
+  }
+  function update() {
+    if (!geo.length || !segH) return;
+    tgtPos = targetFromScroll();
+    if (curPos === null) { curPos = tgtPos; render(curPos); return; }
+    if (!anim) anim = requestAnimationFrame(step);
   }
 
   // Klick auf einen anderen Clip → dorthin scrollen; Klick auf den aktiven → Film öffnen
@@ -221,10 +238,10 @@ if (work) {
   viewer.addEventListener('click', openActive);
 
 
-  window.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
+  window.addEventListener('scroll', update, { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)
   let lastW = window.innerWidth;
-  window.addEventListener('resize', () => { if (window.innerWidth !== lastW) { lastW = window.innerWidth; layout(); } });
+  window.addEventListener('resize', () => { if (window.innerWidth !== lastW || !segH) { lastW = window.innerWidth; layout(); } });
   layout();
   window.addEventListener('load', layout);
 }

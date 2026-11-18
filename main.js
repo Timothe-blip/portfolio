@@ -134,7 +134,11 @@ if (work) {
   const dur = c => Number(c.dataset.duration) || 60;
   const short = sec => `${p2(Math.floor(sec / 60))}:${p2(Math.floor(sec % 60))}`;
   // langsam in der Mitte, schnell an den Rändern → Abspielkopf "hält" auf jedem Projekt
-  const hold = t => 0.5 + 0.5 * Math.sign(t - 0.5) * Math.pow(Math.abs(2 * t - 1), 2.6);
+  // Halten in der Clipmitte: am Handy deutlich (2.6), am Desktop kaum (das Weiterspringen macht dort der schnelle Wisch),
+  // damit die Timeline beim langsamen Scrollen fast direkt dem Mausrad folgt.
+  const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
+  const HOLD_EXP = IS_TOUCH ? 2.6 : 1.15;
+  const hold = t => 0.5 + 0.5 * Math.sign(t - 0.5) * Math.pow(Math.abs(2 * t - 1), HOLD_EXP);
 
   let acc = 0;
   clips.forEach(c => {
@@ -215,7 +219,8 @@ if (work) {
   }
 
   // Scrollen gibt nur das Ziel vor; die Timeline gleitet weich dorthin (gleich weich mit Maus, Trackpad und Finger)
-  const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0.14;
+  // Glättung: Handy 0.14 (weich), Desktop 0.6 (fast direkt)
+  const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : (IS_TOUCH ? 0.14 : 0.6);
   let curPos = null, tgtPos = 0, anim = null, gliding = false;
   function targetFromScroll() {
     const y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), segH * clips.length - 0.001);
@@ -269,7 +274,7 @@ if (work) {
   // der restliche Schwung dieser Bewegung (Trackpad-Nachlauf, weitere Raddrehungen) wird ignoriert.
   // Eigener Block – die Handy-Logik weiter unten bleibt davon unberührt.
   if (!window.matchMedia('(pointer: coarse)').matches) {
-    const FAST = 1.8;      // px/ms – ab hier gilt die Bewegung als "schnell"
+    const FAST = 0.9;      // px/ms – ab hier gilt die Bewegung als "schnell"
     const GAP = 180;       // ms Pause = neue Bewegung
     const zoneEnd = () => work.offsetTop + segH * clips.length - 1;
     const inZone = y => y >= work.offsetTop - 1 && y <= zoneEnd() + 1;
@@ -279,7 +284,7 @@ if (work) {
     const root = document.documentElement;
     const jump = y => { root.style.scrollBehavior = 'auto'; window.scrollTo(0, y); };
     const jumpDone = () => { root.style.scrollBehavior = ''; };
-    const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / 2.6);
+    const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / HOLD_EXP);
     const scrollForPos = p => {
       let i = geo.findIndex(g => p < g.x + g.w);
       if (i < 0) i = geo.length - 1;
@@ -312,6 +317,19 @@ if (work) {
     // Langsam: der Browser scrollt ganz normal (flüssig, nichts wird abgefangen).
     // Schnell: ab dem Moment, in dem die Bewegung als schnell erkannt wird, übernimmt die Seite,
     // gleitet genau ein Projekt weiter und schluckt den Rest der Bewegung.
+    // Weiches Gleiten zu einer Scrollposition außerhalb der Timeline (zu About bzw. zum Banner)
+    const deskGlideToY = target => {
+      stopDeskGlide();
+      const from = window.scrollY, dist = target - from, t0 = performance.now(), dur = 750;
+      const ease = k => 1 - Math.pow(1 - k, 3);      // zügig los, sanft abbremsen
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        jump(from + dist * ease(k));
+        if (k < 1) dGlide = requestAnimationFrame(tick); else { dGlide = null; jumpDone(); }
+      };
+      dGlide = requestAnimationFrame(tick);
+    };
+
     window.addEventListener('wheel', e => {
       if (!lightbox.hidden || e.ctrlKey) return;                 // Film offen / Zoom-Geste
       const dy = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1);
@@ -350,8 +368,11 @@ if (work) {
       if (!wg.startInZone || !inZone(y)) return;                  // außerhalb der Timeline: normal
       if (wg.count >= 2 && wg.vel > FAST) {
         const next = wg.startIdx + dir;
-        if (next >= 0 && next < clips.length) { e.preventDefault(); wg.locked = true; wg.lockedAt = now; deskGlideToClip(next); }
-        // sonst (erstes/letztes Projekt): normal weiter zum Banner bzw. zu About
+        e.preventDefault(); wg.locked = true; wg.lockedAt = now;
+        if (next >= 0 && next < clips.length) deskGlideToClip(next);
+        // Aus dem letzten Clip heraus: weich bis zum Anfang von About gleiten und dort sanft abbremsen;
+        // aus dem ersten Clip zurück: weich zum Banner.
+        else deskGlideToY(next < 0 ? 0 : document.getElementById('about').offsetTop);
       }
     }, { passive: false });
   }
@@ -370,10 +391,10 @@ if (work) {
     const lockMomentum = () => { root.style.overflowY = 'hidden'; };
     const unlockMomentum = () => { root.style.overflowY = ''; };
 
-    const glideTo = y => {
+    const glideTo = (y, dur = 420) => {
       cancelAnimationFrame(glide);
       lockMomentum();
-      const from = window.scrollY, dist = y - from, t0 = performance.now(), dur = 420;
+      const from = window.scrollY, dist = y - from, t0 = performance.now();
       const ease = k => 1 - Math.pow(1 - k, 3);
       const tick = now => {
         const k = Math.min((now - t0) / dur, 1);
@@ -447,7 +468,10 @@ if (work) {
       if (startInZone && inZone(y)) {
         // Genau ein Projekt weiter/zurück – gezählt ab dem Projekt beim Aufsetzen des Fingers
         const next = startIdx + dir;
-        if (next >= 0 && next < clips.length) glideToClip(next);   // sonst: normal raus zum Banner bzw. zu About
+        if (next >= 0 && next < clips.length) glideToClip(next);
+        // Aus dem letzten Clip heraus: weich bis zum Anfang von About gleiten und dort abbremsen;
+        // aus dem ersten Clip zurück: weich zum Banner.
+        else glideTo(next < 0 ? 0 : document.getElementById('about').offsetTop, 750);
       } else {
         // Schwung von außen: beim Hineinrollen am ersten (bzw. letzten) Projekt abfangen
         catchDir = dir; catchUntil = performance.now() + 2500;

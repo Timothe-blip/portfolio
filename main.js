@@ -538,6 +538,25 @@ if (work) {
       glide = requestAnimationFrame(tick);
     };
 
+    // Aus der Timeline hinaus (nach About bzw. zum Banner): startet mit der Geschwindigkeit des Fingers
+    // und bremst weich ab – kein plötzlicher Ruck beim Loslassen.
+    const glideOut = (y, vel) => {
+      cancelAnimationFrame(glide);
+      lockMomentum();
+      const from = window.scrollY, dist = y - from, t0 = performance.now();
+      const v = Math.max(Math.abs(vel), 0.3);
+      const dur = Math.min(Math.max(1.6 * Math.abs(dist) / v, 650), 1300);
+      const m0 = Math.min(v * dur, 2.4 * Math.abs(dist)) * Math.sign(dist);   // Startschwung, ohne Überschießen
+      const curve = k => (k * k * k - 2 * k * k + k) * m0 + (-2 * k * k * k + 3 * k * k) * dist;
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        window.scrollTo(0, from + curve(k));
+        if (k < 1) glide = requestAnimationFrame(tick);
+        else { glide = null; unlockMomentum(); }
+      };
+      glide = requestAnimationFrame(tick);
+    };
+
     // Wisch innerhalb der Timeline: die TIMELINE gleitet auf einer Abbremskurve (schnell los, weich aus),
     // unabhängig vom "Halten" in der Clipmitte. Die Scrollposition wird passend mitgeführt.
     const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / 2.6);
@@ -604,7 +623,7 @@ if (work) {
         if (next >= 0 && next < clips.length) glideToClip(next);
         // Aus dem letzten Clip heraus: weich bis zum Anfang von About gleiten und dort abbremsen;
         // aus dem ersten Clip zurück: weich zum Banner.
-        else glideTo(next < 0 ? 0 : document.getElementById('about').offsetTop, 750);
+        else glideOut(next < 0 ? 0 : document.getElementById('about').offsetTop, vel);
       } else {
         // Schwung von außen: beim Hineinrollen am ersten (bzw. letzten) Projekt abfangen
         catchDir = dir; catchUntil = performance.now() + 2500;

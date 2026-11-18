@@ -50,8 +50,12 @@ function closeVideo() {
     delete v.dataset.resume; v.play().catch(() => {});
   });
   // Fokus zurück, aber ohne dass der Browser dafür etwas verschiebt
-  if (lastFocus) lastFocus.focus({ preventScroll: true });
-  document.documentElement.style.overflow = '';
+  // Fokus nur bei Tastaturbedienung zurückgeben. Auf Touch-Geräten den Fokus entfernen,
+  // sonst schiebt Safari die Seite später seitlich zu einem Clip außerhalb des Bildes.
+  if (window.matchMedia('(pointer: coarse)').matches) { if (document.activeElement) document.activeElement.blur(); }
+  else if (lastFocus) lastFocus.focus({ preventScroll: true });
+  document.documentElement.style.overflowY = '';
+  if (window.scrollX) window.scrollTo(0, window.scrollY);
   window.dispatchEvent(new Event('lightbox:closed'));
 }
 
@@ -269,8 +273,9 @@ if (work) {
     // Den eingebauten Schwung des iPhones stoppen, damit nur EINE Bewegung zum Ziel läuft.
     // (overflow:hidden beendet den Schwung sofort; per Skript lässt sich trotzdem weiterscrollen.)
     const root = document.documentElement;
-    const lockMomentum = () => { root.style.overflow = 'hidden'; };
-    const unlockMomentum = () => { root.style.overflow = ''; };
+    // nur senkrecht sperren – seitlich bleibt die Seite unverschiebbar (overflow-x: clip)
+    const lockMomentum = () => { root.style.overflowY = 'hidden'; };
+    const unlockMomentum = () => { root.style.overflowY = ''; };
 
     const glideTo = y => {
       cancelAnimationFrame(glide);
@@ -372,6 +377,9 @@ if (work) {
     sticky.scrollLeft = 0; sticky.scrollTop = 0;
     requestAnimationFrame(() => { sticky.scrollLeft = 0; sticky.scrollTop = 0; layout(); });
   });
+
+  // Sicherheitsnetz: die Seite darf nie seitlich verschoben sein
+  window.addEventListener('scroll', () => { if (window.scrollX) window.scrollTo(0, window.scrollY); }, { passive: true });
 
   window.addEventListener('scroll', update, { passive: true });
   // Nur bei echter Größenänderung neu berechnen (nicht wenn am Handy die Adressleiste ein-/ausfährt)

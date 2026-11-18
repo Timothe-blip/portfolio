@@ -571,3 +571,17 @@ const io = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.12 });
 revealEls.forEach(el => io.observe(el));
+
+// Auslastungskalender: Monatsansicht am Desktop, Terminliste am Handy
+(() => {
+  const f = document.querySelector('.cal-frame iframe');
+  if (!f) return;
+  const narrow = matchMedia('(max-width: 760px)').matches;
+  const q = new URLSearchParams({
+    src: f.dataset.cal, ctz: 'Europe/Berlin', hl: 'en', wkst: '2',
+    mode: narrow ? 'AGENDA' : 'MONTH',
+    showTitle: '0', showPrint: '0', showTabs: '0', showCalendars: '0', showTz: '0',
+    bgcolor: '#ffffff'
+  });
+  f.src = 'https://calendar.google.com/calendar/embed?' + q;
+})();

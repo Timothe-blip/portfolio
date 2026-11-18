@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=59">
+  <link rel="stylesheet" href="style.css?v=60">
 </head>
 <body>
 
@@ -120,6 +120,14 @@
           <li><span>Based in</span>Freiburg, Germany</li>
           <li><span>Languages</span>German · French · English</li>
         </ul>
+        <!-- Auslastungskalender (öffentlicher Google-Kalender). Ansicht wird in main.js je nach Bildschirm gewählt. -->
+        <div class="availability">
+          <p class="avail-label mono">Availability</p>
+          <div class="cal-frame">
+            <iframe title="Availability calendar" loading="lazy" referrerpolicy="no-referrer"
+              data-cal="0e80dbcfe5a7d05493688315afb7419580078471e5282cd5516ba92c7fcc1b4f@group.calendar.google.com"></iframe>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -148,6 +156,6 @@
   <!-- Eigener Cursor über Viewer und Clips (nur mit Maus) -->
   <div class="cursor" aria-hidden="true"><span class="cursor-label"></span></div>
 
-  <script src="main.js?v=59"></script>
+  <script src="main.js?v=60"></script>
 </body>
 </html>

@@ -284,6 +284,15 @@ if (work) {
     const root = document.documentElement;
     const jump = y => { root.style.scrollBehavior = 'auto'; window.scrollTo(0, y); };
     const jumpDone = () => { root.style.scrollBehavior = ''; };
+    // Während des Nachschwungs das Scrollen der Seite sperren: Browser verschicken den Trackpad-Nachschwung
+    // oft als "nicht abbrechbar", preventDefault allein hilft dann nicht. overflow:hidden stoppt ihn sicher;
+    // das Gleiten per Skript funktioniert trotzdem. Freigabe, sobald der Schwung vorbei ist oder neuer Input kommt.
+    let unlockT = null;
+    const unlockScroll = () => { clearTimeout(unlockT); unlockT = null; root.style.overflowY = ''; };
+    const lockScroll = () => {
+      root.style.overflowY = 'hidden';
+      clearTimeout(unlockT); unlockT = setTimeout(unlockScroll, GAP + 80);
+    };
     const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / HOLD_EXP);
     const scrollForPos = p => {
       let i = geo.findIndex(g => p < g.x + g.w);
@@ -353,8 +362,9 @@ if (work) {
         wg.rise = a > wg.lastAbs ? (wg.rise || 0) + 1 : 0;
         const reaccel = !dGlide && !gliding && ((a >= 8 && a >= wg.lastAbs * 2) || (wg.rise >= 2 && a >= 10));
         if (reaccel) {
+          unlockScroll();
           wg = { startIdx: idxAt(y), startInZone: inZone(y), last: now, vel: 0, peakVel: 0, count: 1, locked: false, dir, lastAbs: a };
-        } else { wg.lastAbs = a; e.preventDefault(); return; }
+        } else { wg.lastAbs = a; e.preventDefault(); lockScroll(); return; }
       }
       wg.lastAbs = Math.abs(dy);
       wg.peakVel = Math.max(wg.peakVel || 0, wg.vel);
@@ -364,7 +374,7 @@ if (work) {
         const enterFromTop = dir > 0 && y < centerOf(0) && y + dy > work.offsetTop;
         const enterFromBottom = dir < 0 && y > centerOf(clips.length - 1) && y + dy < zoneEnd();
         if (enterFromTop || enterFromBottom) {
-          e.preventDefault();
+          e.preventDefault(); lockScroll();
           Object.assign(wg, { locked: true, lockedAt: now });
           deskGlideToClip(enterFromTop ? 0 : clips.length - 1);
           return;
@@ -373,7 +383,7 @@ if (work) {
       if (!wg.startInZone || !inZone(y)) return;                  // außerhalb der Timeline: normal
       if (wg.count >= 2 && wg.vel > FAST) {
         const next = wg.startIdx + dir;
-        e.preventDefault(); wg.locked = true; wg.lockedAt = now;
+        e.preventDefault(); lockScroll(); wg.locked = true; wg.lockedAt = now;
         if (next >= 0 && next < clips.length) deskGlideToClip(next);
         // Aus dem letzten Clip heraus: weich bis zum Anfang von About gleiten und dort sanft abbremsen;
         // aus dem ersten Clip zurück: weich zum Banner.

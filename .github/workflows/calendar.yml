@@ -1,0 +1,21 @@
+# Holt alle 3 Stunden die belegten Tage aus dem Google-Kalender und legt sie als
+# media/availability.json ab. Kann auf GitHub unter "Actions" auch von Hand gestartet werden.
+name: Kalender aktualisieren
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/calendar_sync.py
+      - run: |
+          if git diff --quiet; then echo "Keine Änderung"; exit 0; fi
+          git config user.name "kalender-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Kalender aktualisiert"
+          git push

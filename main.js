@@ -572,16 +572,58 @@ const io = new IntersectionObserver(entries => {
 }, { threshold: 0.12 });
 revealEls.forEach(el => io.observe(el));
 
-// Auslastungskalender: Monatsansicht am Desktop, Terminliste am Handy
+// Auslastungskalender: eigene Monatsansicht, belegte Tage aus media/availability.json
 (() => {
-  const f = document.querySelector('.cal-frame iframe');
-  if (!f) return;
-  const narrow = matchMedia('(max-width: 760px)').matches;
-  const q = new URLSearchParams({
-    src: f.dataset.cal, ctz: 'Europe/Berlin', hl: 'en', wkst: '2',
-    mode: narrow ? 'AGENDA' : 'MONTH',
-    showTitle: '0', showPrint: '0', showTabs: '0', showCalendars: '0', showTz: '0',
-    bgcolor: '#ffffff'
-  });
-  f.src = 'https://calendar.google.com/calendar/embed?' + q;
+  const box = document.querySelector('.availability');
+  if (!box) return;
+  const wrap = box.querySelector('.avail-months');
+  const prev = box.querySelector('.avail-prev'), next = box.querySelector('.avail-next');
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const pad = n => String(n).padStart(2, '0');
+  const key = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const now = new Date();
+  const todayKey = key(now.getFullYear(), now.getMonth(), now.getDate());
+  let busy = new Set(), offset = 0;
+  const MAX = 9; // so weit nach vorne blättern (Monate)
+
+  function month(y, m) {
+    const first = (new Date(y, m, 1).getDay() + 6) % 7; // Montag = 0
+    const days = new Date(y, m + 1, 0).getDate();
+    let html = `<div class="avail-month"><h3>${MONTHS[m]} ${y}</h3><div class="avail-grid">`;
+    html += ['M','T','W','T','F','S','S'].map(w => `<span class="wd">${w}</span>`).join('');
+    html += '<span></span>'.repeat(first);
+    for (let d = 1; d <= days; d++) {
+      const k = key(y, m, d), col = (first + d - 1) % 7;
+      const c = ['d'];
+      if (k < todayKey) c.push('past');
+      if (k === todayKey) c.push('today');
+      if (busy.has(k)) {
+        c.push('busy');
+        const pk = key(y, m, d - 1), nk = key(y, m, d + 1);
+        if (d === 1 || col === 0 || !busy.has(pk)) c.push('s');
+        if (d === days || col === 6 || !busy.has(nk)) c.push('e');
+      }
+      html += `<span class="${c.join(' ')}">${d}</span>`;
+    }
+    return html + '</div></div>';
+  }
+
+  function render() {
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      const dt = new Date(now.getFullYear(), now.getMonth() + offset + i, 1);
+      html += month(dt.getFullYear(), dt.getMonth());
+    }
+    wrap.innerHTML = html;
+    prev.disabled = offset <= 0;
+    next.disabled = offset >= MAX;
+  }
+
+  prev.addEventListener('click', () => { offset = Math.max(0, offset - 1); render(); });
+  next.addEventListener('click', () => { offset = Math.min(MAX, offset + 1); render(); });
+
+  fetch('media/availability.json?t=' + Date.now())
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => { busy = new Set(j.busy || []); render(); box.hidden = false; })
+    .catch(() => {}); // ohne Daten bleibt der Kalender einfach ausgeblendet
 })();

@@ -630,14 +630,19 @@ if (work) {
       }
     }, { passive: true });
 
+    let lastT = performance.now(), scrollVel = 0;
     window.addEventListener('scroll', () => {
-      const y = window.scrollY;
-      if (catchDir && !touch && !glide && performance.now() < catchUntil) {
+      const y = window.scrollY, now = performance.now();
+      scrollVel = 0.6 * scrollVel + 0.4 * (y - lastY) / Math.max(now - lastT, 8);
+      if (catchDir && !touch && !glide && now < catchUntil) {
         const first = centerOf(0), last = centerOf(clips.length - 1);
+        // Von unten (About) kommend: schon abfangen, sobald der Abstand über About sichtbar wird –
+        // sonst endet der Schwung im leeren Bereich, bevor die Timeline erreicht ist.
+        const fromBelow = document.getElementById('about').offsetTop - window.innerHeight * 0.25;
         if (catchDir > 0 && lastY < first && y >= first - segH * 0.35) { catchDir = 0; glideTo(first); }
-        else if (catchDir < 0 && lastY > last && y <= last + segH * 0.35) { catchDir = 0; glideTo(last); }
+        else if (catchDir < 0 && lastY > last && y <= Math.max(fromBelow, last + segH * 0.35)) { catchDir = 0; glideOut(last, scrollVel); }
       }
-      lastY = y;
+      lastY = y; lastT = now;
     }, { passive: true });
   }
 

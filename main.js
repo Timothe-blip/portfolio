@@ -621,9 +621,9 @@ if (work) {
         // Genau ein Projekt weiter/zurück – gezählt ab dem Projekt beim Aufsetzen des Fingers
         const next = startIdx + dir;
         if (next >= 0 && next < clips.length) glideToClip(next);
-        // Aus dem letzten Clip heraus: weich bis zum Anfang von About gleiten und dort abbremsen;
-        // aus dem ersten Clip zurück: weich zum Banner.
-        else glideOut(next < 0 ? 0 : document.getElementById('about').offsetTop, vel);
+        // Aus dem ersten Clip zurück: weich zum Banner.
+        // Aus dem letzten Clip heraus: nichts tun – das iPhone scrollt ganz normal mit seinem eigenen Schwung weiter.
+        else if (next < 0) glideOut(0, vel);
       } else {
         // Schwung von außen: beim Hineinrollen am ersten (bzw. letzten) Projekt abfangen
         catchDir = dir; catchUntil = performance.now() + 2500;

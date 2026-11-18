@@ -137,8 +137,8 @@ if (work) {
   // Halten in der Clipmitte: am Handy deutlich (2.6), am Desktop kaum (das Weiterspringen macht dort der schnelle Wisch),
   // damit die Timeline beim langsamen Scrollen fast direkt dem Mausrad folgt.
   const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
-  // Desktop = "Scrub": kein Einrasten, Timeline folgt gleichmäßig und weich (alte Einrast-Version zum Vergleich: ?snap)
-  const SCRUB = !IS_TOUCH && !new URLSearchParams(location.search).has('snap');
+  // Desktop = "Scrub": kein Einrasten, Timeline folgt gleichmäßig und weich
+  const SCRUB = !IS_TOUCH;
   const HOLD_EXP = IS_TOUCH ? 2.6 : (SCRUB ? 1 : 1.15);
   const hold = t => 0.5 + 0.5 * Math.sign(t - 0.5) * Math.pow(Math.abs(2 * t - 1), HOLD_EXP);
 

@@ -204,12 +204,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .tl-award[hidden] { display: none; }
 .vw-tc { margin-left: auto; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
 .tl-viewer { position: relative; flex: none; aspect-ratio: 16 / 9; width: 100%; background: #0d0f11; overflow: hidden; border-radius: 3px; cursor: pointer; }
-.tl-viewer img, .tl-viewer video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .5s ease; }
-.tl-viewer .vw-still { animation: kenburns 14s ease-in-out infinite alternate; }
+.tl-viewer img, .tl-viewer video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .3s ease; }
+.tl-viewer .vw-still.is-front { animation: kenburns 14s ease-in-out infinite alternate; }  /* nur die sichtbare Ebene bewegt sich */
 @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.08) translate(-1%, -1%); } }
 .tl-viewer .vw-video { opacity: 0; }
-.tl-viewer.has-video .vw-video { opacity: 1; }
+.tl-viewer.has-video .vw-video { opacity: 1; transition-duration: .5s; }  /* Loop blendet weich ein, beim Wechsel kurz aus */
 .tl-viewer.is-switching img, .tl-viewer.is-switching video { opacity: 0; }
+/* Zwei Thumbnail-Ebenen für die Kreuzblende: sichtbar ist nur die vordere bzw. die gerade einblendende */
+.tl-viewer .vw-still { z-index: 1; }
+.tl-viewer .vw-still:not(.is-front):not(.is-in) { opacity: 0; transition: none; }
+.tl-viewer .vw-video { z-index: 2; }
+.tl-viewer .vw-still.is-in { z-index: 3; }
+.tl-viewer[data-cut="cut"] .vw-still { transition: none; }  /* Schnitt/Blende steuert das Skript selbst */
+.tl-viewer.is-offline::after { z-index: 4; }
+.tl-viewer .vw-play { z-index: 5; }
 .vw-play {
   position: absolute; bottom: 14px; left: 16px; z-index: 2; color: #fff; font-size: 11px; text-shadow: 0 1px 6px rgba(0,0,0,.5);
   opacity: 0; transform: translateY(4px); transition: opacity .25s, transform .25s;

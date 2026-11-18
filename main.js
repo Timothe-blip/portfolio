@@ -137,7 +137,9 @@ if (work) {
   // Halten in der Clipmitte: am Handy deutlich (2.6), am Desktop kaum (das Weiterspringen macht dort der schnelle Wisch),
   // damit die Timeline beim langsamen Scrollen fast direkt dem Mausrad folgt.
   const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
-  const HOLD_EXP = IS_TOUCH ? 2.6 : 1.15;
+  // Desktop = "Scrub": kein Einrasten, Timeline folgt gleichmäßig und weich (alte Einrast-Version zum Vergleich: ?snap)
+  const SCRUB = !IS_TOUCH && !new URLSearchParams(location.search).has('snap');
+  const HOLD_EXP = IS_TOUCH ? 2.6 : (SCRUB ? 1 : 1.15);
   const hold = t => 0.5 + 0.5 * Math.sign(t - 0.5) * Math.pow(Math.abs(2 * t - 1), HOLD_EXP);
 
   let acc = 0;
@@ -171,20 +173,113 @@ if (work) {
 
   // Erst das Thumbnail zeigen, nach THUMB_HOLD ms weich in den Vorschau-Loop überblenden
   const THUMB_HOLD = 1500;
+  // Übergang zwischen Projekten: weiche Kreuzblende (Standard) oder kurzes Abdunkeln (?cut=dip, zum Vergleich).
+  // Beim schnellen Scrubben über mehrere Clips wartet das Bild, bis man kurz auf einem Clip steht,
+  // und blendet dann direkt vom aktuell sichtbaren Bild (Thumbnail oder Vorschau-Loop) zum Ziel.
+  // Standard: harter Schnitt (wie der Playhead in Resolve). Zum Vergleich: ?cut=dissolve (weiche Blende), ?cut=dip (kurz abdunkeln)
+  const CUT_MODE = new URLSearchParams(location.search).get('cut');
+  const DISSOLVE = CUT_MODE !== 'dip';
+  viewer.dataset.cut = DISSOLVE ? 'cut' : 'dip';
+  const SETTLE = 80, XFADE = CUT_MODE === 'dissolve' ? 250 : 0;
+  // Tempo der Timeline (px pro ms), wird in render() gemessen: das Bild wechselt erst, wenn sie fast steht
+  let tlVel = 0, tlLastPos = null, tlLastT = 0;
+  const still2 = still.cloneNode(); still2.removeAttribute('src'); still.after(still2);
+  let front = still, back = still2, xf = null, shownFor = null;
+  front.classList.add('is-front');
+  // Harter Schnitt: jedes Projekt hat eine eigene, schon geladene Bildebene – beim Schnitt wird nur
+  // umgeschaltet, welche sichtbar ist (kein Neuladen, keine Neuberechnung → Scrubben bleibt flüssig).
+  const layers = new Map();
+  if (DISSOLVE && !XFADE) {
+    clips.forEach(c => {
+      const im = still.cloneNode(); im.classList.remove('is-front');
+      im.src = c.dataset.thumb || ''; im.alt = c.dataset.title; im.decoding = 'async';
+      still2.before(im); layers.set(c, im);
+    });
+    still.remove(); still2.remove();
+  }
+  let cutFront = null, vidT = null;
+  function hardCut(c) {
+    const im = layers.get(c);
+    if (cutFront !== im) { cutFront?.classList.remove('is-front'); im.classList.add('is-front'); cutFront = im; }
+    if (viewer.classList.contains('has-video')) {
+      // Loop sofort weg, ohne erzwungene Neuberechnung
+      vVideo.style.transition = 'none';
+      viewer.classList.remove('has-video'); vVideo.pause();
+      clearTimeout(vidT); vidT = setTimeout(() => { vVideo.style.transition = ''; }, 60);
+    }
+    afterSwitch(c);
+  }
+  function afterSwitch(c) {
+    viewer.classList.toggle('is-offline', c.dataset.status === 'in-post');
+    if (!c.dataset.preview) return;
+    if (vVideo.getAttribute('src') !== c.dataset.preview) { vVideo.src = c.dataset.preview; vVideo.load(); }
+    scheduleVideo();
+  }
   function showInViewer(c) {
-    viewer.classList.add('is-switching');
     clearTimeout(viewer._t); clearTimeout(viewer._v);
-    viewer.classList.remove('has-video');
-    vVideo.pause();
-    viewer._t = setTimeout(() => {
-      still.src = c.dataset.thumb || '';
-      still.alt = c.dataset.title;
-      viewer.classList.toggle('is-offline', c.dataset.status === 'in-post');
-      viewer.classList.remove('is-switching');
-      if (!c.dataset.preview) return;
-      if (vVideo.getAttribute('src') !== c.dataset.preview) { vVideo.src = c.dataset.preview; vVideo.load(); }
-      scheduleVideo();
-    }, 180);
+    if (layers.size) { hardCut(c); return; }
+    const id = (viewer._id = (viewer._id || 0) + 1), src = c.dataset.thumb || '';
+    const pre = new Image(); pre.src = src;
+    const ready = pre.decode ? pre.decode().catch(() => {}) : Promise.resolve();
+    if (!DISSOLVE) {
+      // Kurz abdunkeln. Lief der Vorschau-Loop, das alte Thumbnail gar nicht erst wieder zeigen.
+      if (viewer.classList.contains('has-video')) {
+        front.style.transition = 'none'; front.style.opacity = '0';
+        front.offsetWidth; front.style.transition = ''; front.style.opacity = '';
+      }
+      viewer.classList.add('is-switching');
+      viewer.classList.remove('has-video');
+      vVideo.pause();
+      viewer._t = setTimeout(() => ready.then(() => {
+        if (viewer._id !== id) return;
+        front.src = src; front.alt = c.dataset.title;
+        viewer.classList.remove('is-switching');
+        afterSwitch(c);
+      }), 90);
+      return;
+    }
+    // Harter Schnitt: sofort, sobald der Playhead die Clipgrenze überfährt (wie in Resolve)
+    if (!XFADE) { crossTo(c, id, src); return; }
+    // Blende: erst wenn der Clip kurz stehen bleibt und die Timeline fast steht (max. 600 ms warten)
+    const t0 = performance.now();
+    const go = () => {
+      if (viewer._id !== id) return;
+      if (shownFor !== null && performance.now() - tlLastT < 120 && tlVel > 0.25 && performance.now() - t0 < 600) {
+        viewer._t = setTimeout(go, 40); return;
+      }
+      ready.then(() => crossTo(c, id, src));
+    };
+    viewer._t = setTimeout(go, shownFor === null ? 0 : SETTLE);
+  }
+  function crossTo(c, id, src) {
+    {
+      if (viewer._id !== id) return;
+      // Läuft noch eine Blende: zu mehr als der Hälfte durch → fertig machen, sonst zurück
+      if (xf) {
+        const done = (xf.currentTime || 0) / XFADE > 0.5;
+        xf.cancel(); xf = null;
+        back.classList.remove('is-in');
+        if (done) { [front, back] = [back, front]; front.classList.add('is-front'); back.classList.remove('is-front'); }
+      }
+      if (shownFor === c && !viewer.classList.contains('has-video')) { afterSwitch(c); return; }
+      back.src = src; back.alt = c.dataset.title;
+      back.classList.add('is-in');                 // liegt über Thumbnail und Vorschau-Loop
+      const done = () => {
+        xf = null;
+        [front, back] = [back, front];
+        front.classList.add('is-front'); front.classList.remove('is-in');
+        back.classList.remove('is-front');
+        // Loop sofort (ohne Ausblenden) wegnehmen – sonst läge er kurz über dem neuen Bild
+        vVideo.style.transition = 'none';
+        viewer.classList.remove('has-video'); vVideo.pause();
+        vVideo.offsetWidth; vVideo.style.transition = '';
+        shownFor = c;
+        afterSwitch(c);
+      };
+      if (!XFADE) { done(); return; }               // harter Schnitt
+      xf = back.animate([{ opacity: 0 }, { opacity: 1 }], { duration: XFADE, easing: 'ease-in-out' });
+      xf.onfinish = done;
+    }
   }
   // Der Countdown fürs Thumbnail läuft nur, solange der Viewer wirklich im Bild ist.
   // Ist er nicht sichtbar, bleibt das Thumbnail stehen und der Loop wird zurückgesetzt.
@@ -220,14 +315,25 @@ if (work) {
 
   // Scrollen gibt nur das Ziel vor; die Timeline gleitet weich dorthin (gleich weich mit Maus, Trackpad und Finger)
   // Glättung: Handy 0.14 (weich), Desktop 0.6 (fast direkt)
-  const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : (IS_TOUCH ? 0.14 : 0.6);
+  const LERP = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : (IS_TOUCH ? 0.14 : (SCRUB ? 0.35 : 0.6));
   let curPos = null, tgtPos = 0, anim = null, gliding = false;
+  // Scrub-Variante: Scrollweg und Timeline gleichmäßig verknüpft (lange Clips = mehr Scrollweg),
+  // damit sich das Tempo beim Übergang zwischen kurzen und langen Clips nicht ändert.
+  const scrubSpan = () => ({ x0: geo[0].x, w: geo.at(-1).x + geo.at(-1).w - geo[0].x, h: segH * clips.length });
+  const scrubScrollFor = p => { const s = scrubSpan(); return work.offsetTop + (p - s.x0) / s.w * s.h; };
   function targetFromScroll() {
+    if (SCRUB) {
+      const s = scrubSpan(), y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), s.h);
+      return s.x0 + y / s.h * s.w;
+    }
     const y = Math.min(Math.max(window.scrollY - work.offsetTop, 0), segH * clips.length - 0.001);
     const i = Math.min(Math.max(Math.floor(y / segH), 0), geo.length - 1), t = Math.min(Math.max((y - i * segH) / segH, 0), 1);
     return geo[i].x + hold(t) * geo[i].w;
   }
   function render(pos) {
+    const now = performance.now();
+    if (tlLastPos !== null) tlVel = 0.7 * tlVel + 0.3 * Math.abs(pos - tlLastPos) / Math.max(now - tlLastT, 8);
+    tlLastPos = pos; tlLastT = now;
     // Sicherheitsnetz: falls ein Browser den Bereich doch verschoben hat, zurücksetzen
     if (sticky.scrollLeft || sticky.scrollTop) { sticky.scrollLeft = 0; sticky.scrollTop = 0; }
     const tx = viewport.clientWidth / 2 - pos;
@@ -258,7 +364,8 @@ if (work) {
   clips.forEach((c, i) => c.addEventListener('click', e => {
     if (c === active) return;
     e.stopImmediatePropagation();
-    window.scrollTo({ top: work.offsetTop + segH * (i + 0.5), behavior: 'smooth' });
+    const top = SCRUB ? scrubScrollFor(geo[i].x + geo[i].w / 2) : work.offsetTop + segH * (i + 0.5);
+    window.scrollTo({ top, behavior: 'smooth' });
   }, true));
   const openActive = () => active?.dataset.video && openVideo(active);
   viewer.addEventListener('click', openActive);
@@ -295,6 +402,7 @@ if (work) {
     };
     const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / HOLD_EXP);
     const scrollForPos = p => {
+      if (SCRUB) return scrubScrollFor(p);
       let i = geo.findIndex(g => p < g.x + g.w);
       if (i < 0) i = geo.length - 1;
       const g = geo[i], h = Math.min(Math.max((p - g.x) / g.w, 0), 1);
@@ -327,10 +435,9 @@ if (work) {
     // Schnell: ab dem Moment, in dem die Bewegung als schnell erkannt wird, übernimmt die Seite,
     // gleitet genau ein Projekt weiter und schluckt den Rest der Bewegung.
     // Weiches Gleiten zu einer Scrollposition außerhalb der Timeline (zu About bzw. zum Banner)
-    const deskGlideToY = target => {
+    const deskGlideToY = (target, dur = 750, ease = k => 1 - Math.pow(1 - k, 3)) => {  // zügig los, sanft abbremsen
       stopDeskGlide();
-      const from = window.scrollY, dist = target - from, t0 = performance.now(), dur = 750;
-      const ease = k => 1 - Math.pow(1 - k, 3);      // zügig los, sanft abbremsen
+      const from = window.scrollY, dist = target - from, t0 = performance.now();
       const tick = now => {
         const k = Math.min((now - t0) / dur, 1);
         jump(from + dist * ease(k));
@@ -369,6 +476,17 @@ if (work) {
       wg.lastAbs = Math.abs(dy);
       wg.peakVel = Math.max(wg.peakVel || 0, wg.vel);
 
+      if (SCRUB) {
+        // Scrub-Variante: vom Banner mit Schwung hinein → in einem weichen Zug auf dem ersten Projekt landen.
+        // Innerhalb der Timeline wird nichts abgefangen (freies Scrubben, Trackpad-Nachlauf läuft natürlich aus).
+        // Nur bei einem richtig schnellen Wisch (langsames Scrollen und einzelne Mausrad-Rasten bleiben ganz normal)
+        if (!wg.startInZone && dir > 0 && wg.count >= 3 && wg.peakVel > 1.6 && y < work.offsetTop && y + dy > work.offsetTop - window.innerHeight * 0.25) {
+          e.preventDefault(); lockScroll();
+          Object.assign(wg, { locked: true, lockedAt: now });
+          deskGlideToY(scrollForPos(geo[0].x + geo[0].w / 2), 1100, k => 1 - Math.pow(1 - k, 4));
+        }
+        return;
+      }
       // Mit Schwung von außen hinein: am ersten (bzw. von unten: am letzten) Projekt abfangen
       if (!wg.startInZone && wg.peakVel > FAST) {
         const enterFromTop = dir > 0 && y < centerOf(0) && y + dy > work.offsetTop;

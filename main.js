@@ -346,10 +346,15 @@ if (work) {
       if (wg.locked) {
         // Nachschwung schlucken – aber nur, solange er abklingt. Wird die Bewegung wieder stärker
         // (neuer Wisch) oder dauert das Schlucken über 1 s, ist es eine neue Bewegung.
-        const reaccel = !dGlide && !gliding && Math.abs(dy) > wg.lastAbs * 1.4 + 3;
-        if (reaccel || now - wg.lockedAt > 1000) {
-          wg = { startIdx: idxAt(y), startInZone: inZone(y), last: now, vel: 0, peakVel: 0, count: 1, locked: false, dir, lastAbs: Math.abs(dy) };
-        } else { wg.lastAbs = Math.abs(dy); e.preventDefault(); return; }
+        // Nur eindeutig neuer Input gibt frei (sonst bis zur Pause schlucken – auch wenn der Nachschwung lange läuft):
+        //  - deutlicher Sprung (mind. 8 px und doppelt so stark wie zuvor), oder
+        //  - zweimal hintereinander klar stärker werdend (ab 10 px)
+        const a = Math.abs(dy);
+        wg.rise = a > wg.lastAbs ? (wg.rise || 0) + 1 : 0;
+        const reaccel = !dGlide && !gliding && ((a >= 8 && a >= wg.lastAbs * 2) || (wg.rise >= 2 && a >= 10));
+        if (reaccel) {
+          wg = { startIdx: idxAt(y), startInZone: inZone(y), last: now, vel: 0, peakVel: 0, count: 1, locked: false, dir, lastAbs: a };
+        } else { wg.lastAbs = a; e.preventDefault(); return; }
       }
       wg.lastAbs = Math.abs(dy);
       wg.peakVel = Math.max(wg.peakVel || 0, wg.vel);

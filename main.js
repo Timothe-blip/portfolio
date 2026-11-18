@@ -263,6 +263,99 @@ if (work) {
   // Das iPhone scrollt ganz normal. Erst beim Loslassen wird die Fingergeschwindigkeit geprüft:
   // schnell genug → weich zur Mitte des nächsten/vorigen Projekts gleiten; langsam → bleibt, wo man loslässt.
   const placeSnaps = () => {};
+
+  // ---------- Desktop (nur ohne Touch): Mausrad / Trackpad ----------
+  // Langsam scrollen = Timeline folgt frei. Schnell scrollen = genau ein Projekt weiter;
+  // der restliche Schwung dieser Bewegung (Trackpad-Nachlauf, weitere Raddrehungen) wird ignoriert.
+  // Eigener Block – die Handy-Logik weiter unten bleibt davon unberührt.
+  if (!window.matchMedia('(pointer: coarse)').matches) {
+    const FAST = 1.8;      // px/ms – ab hier gilt die Bewegung als "schnell"
+    const GAP = 180;       // ms Pause = neue Bewegung
+    const zoneEnd = () => work.offsetTop + segH * clips.length - 1;
+    const inZone = y => y >= work.offsetTop - 1 && y <= zoneEnd() + 1;
+    const idxAt = y => Math.min(Math.max(Math.floor((y - work.offsetTop) / segH), 0), clips.length - 1);
+    const centerOf = i => work.offsetTop + segH * (i + 0.5);
+    // Während des Gleitens das weiche CSS-Scrollen kurz aus, sonst bremst es jeden Schritt (v. a. Safari)
+    const root = document.documentElement;
+    const jump = y => { root.style.scrollBehavior = 'auto'; window.scrollTo(0, y); };
+    const jumpDone = () => { root.style.scrollBehavior = ''; };
+    const holdInv = h => 0.5 + 0.5 * Math.sign(h - 0.5) * Math.pow(Math.abs(2 * h - 1), 1 / 2.6);
+    const scrollForPos = p => {
+      let i = geo.findIndex(g => p < g.x + g.w);
+      if (i < 0) i = geo.length - 1;
+      const g = geo[i], h = Math.min(Math.max((p - g.x) / g.w, 0), 1);
+      return work.offsetTop + segH * (i + holdInv(h));
+    };
+    let dGlide = null, dSettle = null, wg = null;
+    const stopDeskGlide = () => { cancelAnimationFrame(dGlide); dGlide = null; clearTimeout(dSettle); gliding = false; jumpDone(); };
+    const deskGlideToClip = i => {
+      stopDeskGlide();
+      cancelAnimationFrame(anim); anim = null;
+      const from = curPos ?? targetFromScroll(), to = geo[i].x + geo[i].w / 2;
+      const t0 = performance.now(), dur = 460;
+      const ease = k => 1 - Math.pow(1 - k, 3);      // schnell los, sanft auslaufen
+      gliding = true;
+      const tick = now => {
+        const k = Math.min((now - t0) / dur, 1);
+        const p = from + (to - from) * ease(k);
+        curPos = tgtPos = p; render(p);
+        jump(scrollForPos(p));
+        if (k < 1) { dGlide = requestAnimationFrame(tick); return; }
+        const finalY = scrollForPos(to);
+        dGlide = null; jump(finalY);
+        curPos = tgtPos = to; render(to);
+        dSettle = setTimeout(() => { gliding = false; jump(finalY); jumpDone(); }, 250);
+      };
+      dGlide = requestAnimationFrame(tick);
+    };
+
+    // Langsam: der Browser scrollt ganz normal (flüssig, nichts wird abgefangen).
+    // Schnell: ab dem Moment, in dem die Bewegung als schnell erkannt wird, übernimmt die Seite,
+    // gleitet genau ein Projekt weiter und schluckt den Rest der Bewegung.
+    window.addEventListener('wheel', e => {
+      if (!lightbox.hidden || e.ctrlKey) return;                 // Film offen / Zoom-Geste
+      const dy = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1);
+      if (!dy) return;
+      const y = window.scrollY, now = e.timeStamp, dir = Math.sign(dy);
+      if (!wg || now - wg.last > GAP || (wg.dir !== dir && !wg.locked)) {
+        if (dGlide || gliding) stopDeskGlide();
+        wg = { startIdx: idxAt(y), startInZone: inZone(y), last: now, vel: 0, peakVel: 0, count: 0, locked: false, dir, lastAbs: 0 };
+      }
+      const dt = Math.max(now - wg.last, 8);
+      wg.last = now; wg.count++;
+      wg.vel = wg.count === 1 ? 0 : 0.6 * wg.vel + 0.4 * (Math.abs(dy) / dt);
+
+      if (wg.locked) {
+        // Nachschwung schlucken – aber nur, solange er abklingt. Wird die Bewegung wieder stärker
+        // (neuer Wisch) oder dauert das Schlucken über 1 s, ist es eine neue Bewegung.
+        const reaccel = !dGlide && !gliding && Math.abs(dy) > wg.lastAbs * 1.4 + 3;
+        if (reaccel || now - wg.lockedAt > 1000) {
+          wg = { startIdx: idxAt(y), startInZone: inZone(y), last: now, vel: 0, peakVel: 0, count: 1, locked: false, dir, lastAbs: Math.abs(dy) };
+        } else { wg.lastAbs = Math.abs(dy); e.preventDefault(); return; }
+      }
+      wg.lastAbs = Math.abs(dy);
+      wg.peakVel = Math.max(wg.peakVel || 0, wg.vel);
+
+      // Mit Schwung von außen hinein: am ersten (bzw. von unten: am letzten) Projekt abfangen
+      if (!wg.startInZone && wg.peakVel > FAST) {
+        const enterFromTop = dir > 0 && y < centerOf(0) && y + dy > work.offsetTop;
+        const enterFromBottom = dir < 0 && y > centerOf(clips.length - 1) && y + dy < zoneEnd();
+        if (enterFromTop || enterFromBottom) {
+          e.preventDefault();
+          Object.assign(wg, { locked: true, lockedAt: now });
+          deskGlideToClip(enterFromTop ? 0 : clips.length - 1);
+          return;
+        }
+      }
+      if (!wg.startInZone || !inZone(y)) return;                  // außerhalb der Timeline: normal
+      if (wg.count >= 2 && wg.vel > FAST) {
+        const next = wg.startIdx + dir;
+        if (next >= 0 && next < clips.length) { e.preventDefault(); wg.locked = true; wg.lockedAt = now; deskGlideToClip(next); }
+        // sonst (erstes/letztes Projekt): normal weiter zum Banner bzw. zu About
+      }
+    }, { passive: false });
+  }
+
   if (window.matchMedia('(pointer: coarse)').matches) {
     const FLICK_VEL = 0.22;            // px/ms Fingergeschwindigkeit beim Loslassen
     const FLICK_DIST = 24, FLICK_TIME = 260; // oder: kurzer, schneller Wisch (px in ms)

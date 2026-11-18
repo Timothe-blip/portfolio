@@ -689,3 +689,23 @@ const io = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.12 });
 revealEls.forEach(el => io.observe(el));
+
+// ---------- About: kleiner Clip über "mountain bikes" ----------
+document.querySelectorAll('.hover-clip').forEach(el => {
+  const v = el.querySelector('video');
+  // Clip im Bildschirm halten (am Handy steht das Wort oft am Rand)
+  const fit = () => {
+    const r = el.getBoundingClientRect(), w = v.offsetWidth, m = 16, mid = r.left + r.width / 2;
+    const dx = Math.min(0, window.innerWidth - m - (mid + w / 2)) + Math.max(0, m - (mid - w / 2));
+    el.style.setProperty('--dx', dx + 'px');
+  };
+  const show = () => { fit(); v.preload = 'auto'; v.play().catch(() => {}); };
+  const hide = () => { if (!el.matches(':hover') && !el.classList.contains('is-open')) v.pause(); };
+  el.addEventListener('mouseenter', show);
+  el.addEventListener('mouseleave', () => setTimeout(hide, 300));
+  el.addEventListener('focus', show);
+  el.addEventListener('blur', () => { el.classList.remove('is-open'); setTimeout(hide, 300); });
+  // Handy: antippen zeigt den Clip, nochmal tippen (oder woanders) blendet ihn aus
+  el.addEventListener('click', () => { if (!matchMedia('(pointer: coarse)').matches) return; el.classList.toggle('is-open'); el.classList.contains('is-open') ? show() : setTimeout(hide, 300); });
+  document.addEventListener('click', e => { if (!el.contains(e.target) && el.classList.contains('is-open')) { el.classList.remove('is-open'); setTimeout(hide, 300); } });
+});
